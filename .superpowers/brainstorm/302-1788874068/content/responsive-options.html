@@ -1,0 +1,109 @@
+<h2>窄屏时，对话区和阶段工作台怎样切换？</h2>
+<p class="subtitle">桌面端已经确定同时显示双栏。下面只比较平板与手机的降级方式。</p>
+
+<div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#f8fafc">
+      <div style="display:flex;gap:14px;justify-content:center;align-items:flex-end;height:252px">
+        <div style="width:150px;height:215px;border:1px solid #cbd5e1;border-radius:9px;background:white;overflow:hidden">
+          <div style="height:25px;border-bottom:1px solid #e2e8f0;padding:5px 7px;font-size:8px;font-weight:700">项目 / JD分析</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;margin:7px;border:1px solid #ddd6fe;border-radius:6px;overflow:hidden;font-size:8px;text-align:center">
+            <div style="padding:5px;background:#7c3aed;color:white">对话</div><div style="padding:5px;color:#475569">工作台</div>
+          </div>
+          <div style="padding:3px 9px;display:flex;flex-direction:column;gap:7px">
+            <div style="height:25px;width:75%;background:#f1f5f9;border-radius:4px 8px 8px 8px"></div>
+            <div style="height:20px;width:58%;background:#ede9fe;border-radius:8px 4px 8px 8px;margin-left:auto"></div>
+            <div style="height:30px;width:85%;background:#ecfeff;border:1px solid #a5f3fc;border-radius:6px"></div>
+          </div>
+        </div>
+        <div style="width:88px;height:184px;border:1px solid #cbd5e1;border-radius:12px;background:white;overflow:hidden">
+          <div style="height:21px;border-bottom:1px solid #e2e8f0;padding:4px 6px;font-size:7px;font-weight:700">JD分析</div>
+          <div style="padding:7px 7px 28px;display:flex;flex-direction:column;gap:6px">
+            <div style="height:22px;width:78%;background:#f1f5f9;border-radius:4px 7px 7px 7px"></div>
+            <div style="height:18px;width:56%;background:#ede9fe;border-radius:7px 4px 7px 7px;margin-left:auto"></div>
+            <div style="height:26px;width:88%;background:#ecfeff;border:1px solid #a5f3fc;border-radius:5px"></div>
+          </div>
+          <div style="height:24px;border-top:1px solid #e2e8f0;display:grid;grid-template-columns:1fr 1fr;font-size:7px;text-align:center">
+            <div style="padding:6px 1px;background:#ede9fe;color:#5b21b6;font-weight:700">对话</div><div style="padding:6px 1px;color:#64748b">工作台</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A　明确页签切换</h3>
+      <p>平板顶部页签、手机底部分段按钮；一次只显示一个区域。位置稳定、键盘与读屏操作清晰。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#f8fafc">
+      <div style="display:flex;gap:14px;justify-content:center;align-items:flex-end;height:252px">
+        <div style="width:150px;height:215px;border:1px solid #cbd5e1;border-radius:9px;background:white;overflow:hidden;position:relative">
+          <div style="height:25px;border-bottom:1px solid #e2e8f0;padding:5px 7px;font-size:8px;font-weight:700">项目 / JD分析</div>
+          <div style="padding:10px;display:flex;flex-direction:column;gap:7px;opacity:.48">
+            <div style="height:27px;width:76%;background:#f1f5f9;border-radius:4px 8px 8px 8px"></div>
+            <div style="height:21px;width:58%;background:#ede9fe;border-radius:8px 4px 8px 8px;margin-left:auto"></div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:0;height:122px;background:white;border-top:2px solid #ddd6fe;border-radius:12px 12px 0 0;padding:8px">
+            <div style="width:32px;height:3px;border-radius:2px;background:#cbd5e1;margin:0 auto 7px"></div>
+            <div style="font-size:8px;font-weight:700;margin-bottom:7px">阶段工作台</div>
+            <div style="height:31px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;margin-bottom:6px"></div>
+            <div style="height:25px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px"></div>
+          </div>
+        </div>
+        <div style="width:88px;height:184px;border:1px solid #cbd5e1;border-radius:12px;background:white;overflow:hidden;position:relative">
+          <div style="height:21px;border-bottom:1px solid #e2e8f0;padding:4px 6px;font-size:7px;font-weight:700">JD分析</div>
+          <div style="padding:8px;opacity:.45"><div style="height:23px;background:#f1f5f9;border-radius:5px;margin-bottom:6px"></div><div style="height:18px;width:60%;background:#ede9fe;border-radius:5px;margin-left:auto"></div></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;height:104px;background:white;border-top:2px solid #ddd6fe;border-radius:11px 11px 0 0;padding:7px">
+            <div style="width:24px;height:3px;background:#cbd5e1;border-radius:2px;margin:0 auto 6px"></div>
+            <div style="font-size:7px;font-weight:700;margin-bottom:6px">工作台</div>
+            <div style="height:27px;border:1px solid #e2e8f0;border-radius:5px;margin-bottom:5px"></div>
+            <div style="height:22px;border:1px solid #e2e8f0;border-radius:5px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B　工作台底部抽屉</h3>
+      <p>对话始终留在背景，工作台从底部拉起。上下文连续，但复杂表格空间不足且容易遮挡输入。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#f8fafc">
+      <div style="display:flex;gap:14px;justify-content:center;align-items:flex-end;height:252px">
+        <div style="width:150px;height:215px;border:1px solid #cbd5e1;border-radius:9px;background:white;overflow:hidden">
+          <div style="height:25px;border-bottom:1px solid #e2e8f0;padding:5px 7px;font-size:8px;font-weight:700">根据任务自动切换</div>
+          <div style="padding:10px;display:flex;flex-direction:column;gap:7px">
+            <div style="height:26px;width:76%;background:#f1f5f9;border-radius:4px 8px 8px 8px"></div>
+            <div style="height:28px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:6px"></div>
+            <div style="height:64px;border:2px solid #a78bfa;border-radius:7px;padding:6px">
+              <div style="font-size:7px;font-weight:700;margin-bottom:5px">Agent已打开总模型</div>
+              <div style="height:14px;background:#f1f5f9;border-radius:4px;margin-bottom:4px"></div>
+              <div style="height:14px;background:#f1f5f9;border-radius:4px"></div>
+            </div>
+          </div>
+        </div>
+        <div style="width:88px;height:184px;border:1px solid #cbd5e1;border-radius:12px;background:white;overflow:hidden">
+          <div style="height:21px;border-bottom:1px solid #e2e8f0;padding:4px 6px;font-size:7px;font-weight:700">自动切换中</div>
+          <div style="padding:8px">
+            <div style="font-size:7px;color:#7c3aed;margin-bottom:6px">已跳转到工作台</div>
+            <div style="height:32px;border:1px solid #ddd6fe;border-radius:5px;margin-bottom:6px"></div>
+            <div style="height:48px;border:1px solid #e2e8f0;border-radius:5px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C　Agent自动切换焦点</h3>
+      <p>Agent判断何时显示对话或工作台。步骤少，但页面可能突然变化，用户容易失去位置感和控制感。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:18px">
+  <div class="pros-cons">
+    <div class="pros"><h4>我的建议：A</h4><ul><li>用户始终知道自己在哪个区域</li><li>三阶段切换规则完全一致</li><li>适合长表格、图表和证据回溯</li></ul></div>
+    <div class="cons"><h4>补充机制</h4><ul><li>Agent可提示“请查看工作台”，但不强制跳转</li><li>页签显示未读更新圆点</li><li>切换后保留各自滚动位置与输入草稿</li></ul></div>
+  </div>
+</div>

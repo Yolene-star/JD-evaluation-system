@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>阶段二 · 专注对话型原型</title>
+  <style>
+    :root {
+      --canvas: #f6f8f7;
+      --surface: #ffffff;
+      --surface-soft: #eef5f2;
+      --surface-muted: #f3f6f5;
+      --ink: #18332f;
+      --ink-2: #49625d;
+      --ink-3: #78908a;
+      --line: #dfeae6;
+      --teal: #247c6c;
+      --teal-dark: #176153;
+      --teal-soft: #d9eee8;
+      --amber: #b26a18;
+      --amber-soft: #fff1d9;
+      --green: #27754b;
+      --green-soft: #e1f2e8;
+      --shadow: 0 12px 32px rgba(30, 67, 59, .08);
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.55; }
+    button, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app { min-height: 100vh; display: grid; grid-template-rows: 70px 1fr; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 28px; background: rgba(255,255,255,.92); border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; letter-spacing: .01em; }
+    .brand-mark { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--teal); color: white; font-weight: 800; }
+    .project-name { margin-left: 14px; padding-left: 14px; border-left: 1px solid var(--line); color: var(--ink-2); font-weight: 600; }
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .model-pill, .status-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-size: 12px; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+    .stage-rail { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 7px; color: var(--ink-3); font-size: 12px; }
+    .stage { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+    .stage strong { color: var(--ink); }
+    .stage-no { width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); }
+    .stage.done .stage-no { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-dark); }
+    .stage.active .stage-no { background: var(--teal); color: white; border-color: var(--teal); }
+    .rail-line { width: 26px; height: 1px; background: var(--line); }
+    .body { min-height: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr) 286px; }
+    .sidebar { padding: 22px 16px; background: #fbfcfc; border-right: 1px solid var(--line); }
+    .side-title { display: flex; align-items: center; justify-content: space-between; color: var(--ink-3); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .new-task { width: 100%; margin: 15px 0 22px; padding: 10px 13px; border: 1px solid var(--teal); border-radius: 10px; background: var(--teal); color: white; font-weight: 650; }
+    .history-item { margin: 7px 0; padding: 12px; border-radius: 11px; color: var(--ink-2); }
+    .history-item.active { background: var(--teal-soft); color: var(--teal-dark); }
+    .history-item strong { display: block; color: var(--ink); font-size: 13px; }
+    .history-item.active strong { color: var(--teal-dark); }
+    .history-meta { margin-top: 4px; font-size: 11px; color: var(--ink-3); }
+    .conversation { min-width: 0; display: flex; flex-direction: column; background: var(--surface); }
+    .conversation-head { padding: 24px 42px 15px; border-bottom: 1px solid var(--line); }
+    .conversation-head h1 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
+    .conversation-head p { margin: 5px 0 0; color: var(--ink-2); font-size: 13px; }
+    .conversation-scroll { flex: 1; min-height: 0; overflow: auto; padding: 26px min(9vw, 120px) 20px; }
+    .notice { display: flex; gap: 10px; align-items: flex-start; max-width: 700px; margin: 0 auto 24px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); color: var(--ink-2); font-size: 12px; }
+    .notice b { color: var(--teal-dark); }
+    .message { max-width: 700px; margin: 0 auto 18px; }
+    .message-label { margin-bottom: 6px; color: var(--ink-3); font-size: 12px; }
+    .bubble { padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 5px 18px rgba(28, 63, 55, .04); }
+    .bubble.agent { border-top-left-radius: 5px; }
+    .bubble.user { margin-left: 10%; border-color: #c9e5dc; border-top-right-radius: 5px; background: #f0faf6; }
+    .question-head { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 10px; }
+    .question-type { padding: 4px 8px; border-radius: 6px; background: var(--amber-soft); color: var(--amber); font-size: 11px; font-weight: 700; }
+    .competency-tag { padding: 4px 8px; border: 1px solid #b9ded3; border-radius: 999px; background: #f2fbf8; color: var(--teal-dark); font-size: 11px; }
+    .question-title { margin: 0 0 8px; font-size: 16px; line-height: 1.5; }
+    .question-detail { margin: 0; color: var(--ink-2); font-size: 13px; }
+    .evidence-toggle { margin-top: 13px; padding: 0; border: 0; background: transparent; color: var(--teal-dark); font-size: 12px; font-weight: 650; }
+    .evidence-map { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .evidence-map.open { display: grid; gap: 8px; }
+    .evidence-row { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: start; font-size: 12px; }
+    .evidence-row span:first-child { color: var(--ink-3); }
+    .evidence-row span:last-child { color: var(--ink-2); }
+    .composer-wrap { padding: 14px 42px 20px; border-top: 1px solid var(--line); background: rgba(255,255,255,.96); }
+    .composer { max-width: 700px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; padding: 10px; border: 1px solid #bdded5; border-radius: 14px; background: var(--surface); box-shadow: 0 8px 20px rgba(27, 83, 71, .08); }
+    textarea { min-height: 44px; flex: 1; resize: none; border: 0; outline: 0; color: var(--ink); background: transparent; }
+    textarea::placeholder { color: #94aaa5; }
+    .send { min-width: 80px; min-height: 42px; padding: 0 14px; border: 0; border-radius: 9px; background: var(--teal); color: white; font-weight: 650; }
+    .send:focus-visible, .control:focus-visible, .evidence-toggle:focus-visible, .new-task:focus-visible, textarea:focus-visible { outline: 3px solid rgba(36,124,108,.28); outline-offset: 2px; }
+    .composer-hint { max-width: 700px; margin: 7px auto 0; color: var(--ink-3); font-size: 11px; }
+    .workbench { min-width: 0; padding: 20px 17px; background: #fbfdfc; border-left: 1px solid var(--line); overflow: auto; }
+    .workbench-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .workbench h2 { margin: 0; font-size: 15px; }
+    .workbench-sub { margin: 4px 0 17px; color: var(--ink-3); font-size: 11px; }
+    .collapse { border: 0; background: transparent; color: var(--ink-3); font-size: 18px; }
+    .progress-card { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+    .progress-top { display: flex; justify-content: space-between; align-items: baseline; }
+    .progress-top strong { font-size: 19px; color: var(--teal-dark); }
+    .progress-top span { color: var(--ink-3); font-size: 11px; }
+    .progress-track { height: 7px; margin: 10px 0 7px; overflow: hidden; border-radius: 999px; background: #e8efed; }
+    .progress-fill { width: 37.5%; height: 100%; border-radius: inherit; background: var(--teal); }
+    .progress-note { margin: 0; color: var(--ink-2); font-size: 12px; }
+    .section-label { margin: 22px 0 9px; color: var(--ink-3); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .competency-list { display: grid; gap: 7px; }
+    .comp-row { display: grid; grid-template-columns: 9px 1fr auto; gap: 9px; align-items: center; padding: 10px 9px; border: 1px solid transparent; border-radius: 10px; }
+    .comp-row.current { border-color: #b9ded3; background: var(--teal-soft); }
+    .comp-dot { width: 8px; height: 8px; border-radius: 50%; background: #b6c5c1; }
+    .comp-dot.done { background: var(--green); }
+    .comp-dot.current { background: var(--teal); box-shadow: 0 0 0 3px #b7dfd3; }
+    .comp-name { min-width: 0; color: var(--ink-2); font-size: 12px; }
+    .comp-row.current .comp-name { color: var(--teal-dark); font-weight: 700; }
+    .comp-state { color: var(--ink-3); font-size: 10px; white-space: nowrap; }
+    .comp-state.done { color: var(--green); }
+    .comp-state.current { color: var(--teal-dark); font-weight: 650; }
+    .summary-card { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .summary-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; font-size: 12px; font-weight: 700; }
+    .summary-title button { padding: 0; border: 0; background: transparent; color: var(--teal-dark); font-size: 11px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .summary-cell { padding: 7px 5px; border-radius: 8px; background: var(--surface-muted); text-align: center; }
+    .summary-cell strong { display: block; font-size: 17px; }
+    .summary-cell span { color: var(--ink-3); font-size: 10px; }
+    .controls { display: grid; gap: 8px; margin-top: 22px; }
+    .control { min-height: 40px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink-2); font-weight: 650; }
+    .control.primary { border-color: var(--teal); background: var(--teal); color: white; }
+    .control.danger { color: #9c4c42; }
+    .mobile-switcher { display: none; }
+    @media (max-width: 1020px) {
+      .body { grid-template-columns: 74px minmax(0, 1fr) 260px; }
+      .sidebar { padding: 22px 10px; }
+      .side-title, .new-task, .history-item strong, .history-meta { font-size: 0; }
+      .new-task { height: 42px; padding: 0; }
+      .new-task::after { content: '+'; font-size: 20px; }
+      .history-item { height: 42px; padding: 10px; text-align: center; }
+      .history-item::before { content: '▣'; color: var(--teal); font-size: 16px; }
+      .stage-rail { display: none; }
+    }
+    @media (max-width: 760px) {
+      .app { grid-template-rows: 62px 1fr; }
+      .topbar { padding: 0 14px; }
+      .project-name, .model-pill { display: none; }
+      .top-actions .status-pill { padding: 7px 9px; }
+      .body { display: block; }
+      .sidebar { display: none; }
+      .conversation-head { padding: 18px 17px 13px; }
+      .conversation-scroll { padding: 19px 15px; }
+      .composer-wrap { padding: 12px 15px 15px; }
+      .workbench { position: fixed; z-index: 5; inset: 62px 0 0 auto; width: min(92vw, 330px); transform: translateX(102%); transition: transform .22s ease; box-shadow: -12px 0 28px rgba(18, 48, 41, .12); }
+      .workbench.open { transform: translateX(0); }
+      .mobile-switcher { position: fixed; z-index: 4; right: 14px; bottom: 88px; display: block; min-height: 44px; padding: 0 13px; border: 1px solid var(--teal); border-radius: 999px; background: var(--teal); color: white; box-shadow: 0 8px 18px rgba(36,124,108,.22); font-weight: 700; }
+      .bubble.user { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">测</div><span>能力测评</span><span class="project-name">AI Agent 开发工程师</span></div>
+      <div class="stage-rail" aria-label="阶段进度">
+        <div class="stage done"><span class="stage-no">✓</span><span>JD解析</span></div><span class="rail-line"></span>
+        <div class="stage active"><span class="stage-no">2</span><strong>模拟面试</strong></div><span class="rail-line"></span>
+        <div class="stage"><span class="stage-no">3</span><span>人才画像</span></div>
+      </div>
+      <div class="top-actions"><span class="model-pill">模型 v1.0 · 已确认</span><span class="status-pill"><i class="status-dot"></i>测评进行中</span></div>
+    </header>
+    <main class="body">
+      <aside class="sidebar" aria-label="历史任务">
+        <div class="side-title"><span>任务</span><span>⌘K</span></div>
+        <button class="new-task">新建任务</button>
+        <div class="history-item active"><strong>AI Agent 开发工程师</strong><div class="history-meta">阶段二 · 刚刚</div></div>
+        <div class="history-item"><strong>前端工程师能力模型</strong><div class="history-meta">阶段一 · 昨天</div></div>
+        <div class="history-item"><strong>数据分析岗位</strong><div class="history-meta">已完成 · 09-06</div></div>
+      </aside>
+      <section class="conversation" aria-label="测评对话">
+        <div class="conversation-head"><h1>模拟面试</h1><p>用真实工作场景回答问题，系统会根据你的回答进行必要追问。</p></div>
+        <div class="conversation-scroll">
+          <div class="notice"><span>ⓘ</span><span>本题为<strong>综合题</strong>，会同时观察多个能力项。你可以围绕一个完整项目经历回答，系统会将证据分别归档。</span></div>
+          <article class="message"><div class="message-label">AI 面试官 · 当前问题</div><div class="bubble agent">
+            <div class="question-head"><span class="question-type">综合题 · 覆盖 3 项能力</span><span class="competency-tag">系统设计</span><span class="competency-tag">问题分析</span><span class="competency-tag">沟通表达</span></div>
+            <h2 class="question-title">请结合一个你实际参与过的项目，说明你如何发现并定位一个复杂问题，如何设计解决方案，以及如何推动相关成员达成一致。</h2>
+            <p class="question-detail">建议回答：背景与约束 → 你的判断过程 → 方案取舍 → 协作与结果。无需逐项作答。</p>
+            <button class="evidence-toggle" onclick="toggleEvidence(this)" aria-expanded="false">查看本题如何计入能力项 ▾</button>
+            <div class="evidence-map">
+              <div class="evidence-row"><span>系统设计</span><span>关注方案结构、约束分析和技术取舍；单独累计该能力的证据充分度。</span></div>
+              <div class="evidence-row"><span>问题分析</span><span>关注定位路径、假设验证和根因判断；不足时只追问该能力缺口。</span></div>
+              <div class="evidence-row"><span>沟通表达</span><span>关注如何解释分歧、同步信息和推动决策；不因技术答案覆盖而自动完成。</span></div>
+            </div>
+          </div></article>
+          <article class="message"><div class="message-label">你的回答 · 2 分钟前</div><div class="bubble user">在一个多模态检索项目里，我们发现线上延迟偶发升高。我先把问题拆成检索、重排和生成三个阶段，分别采样指标，确认主要瓶颈在重排模型的批处理策略。方案上我比较了缓存和批处理窗口调整，最后选择先缩短窗口并增加降级路径。这个决定涉及后端、算法和产品，我用一页图说明延迟、准确率和成本的取舍，和大家一起确认了发布范围。</div></article>
+          <article class="message"><div class="message-label">AI 面试官 · 正在分析</div><div class="bubble agent"><div class="question-head"><span class="question-type" style="background:var(--surface-muted);color:var(--ink-2)">正在分析回答</span></div><p class="question-detail">正在从你的回答中提取证据，并判断是否需要针对某个能力项追问。</p></div></article>
+        </div>
+        <div class="composer-wrap"><div class="composer"><textarea aria-label="回答输入" placeholder="输入你的回答…" rows="2"></textarea><button class="send">提交回答</button></div><div class="composer-hint">Enter 换行 · Ctrl / ⌘ + Enter 提交 · 当前能力项最多追问 2 次</div></div>
+      </section>
+      <aside class="workbench" id="workbench" aria-label="测评工作台">
+        <div class="workbench-head"><div><h2>测评工作台</h2><p class="workbench-sub">阶段二 · 结构化测评</p></div><button class="collapse" aria-label="收起工作台" onclick="toggleWorkbench()">×</button></div>
+        <div class="progress-card"><div class="progress-top"><strong>3 / 8</strong><span>能力项已完成</span></div><div class="progress-track"><div class="progress-fill"></div></div><p class="progress-note">当前：综合题 · 预计还需 10–15 分钟</p></div>
+        <div class="section-label">能力项状态</div>
+        <div class="competency-list">
+          <div class="comp-row"><span class="comp-dot done"></span><span class="comp-name">提示词设计</span><span class="comp-state done">已完成</span></div>
+          <div class="comp-row"><span class="comp-dot done"></span><span class="comp-name">模型调用与评估</span><span class="comp-state done">已完成</span></div>
+          <div class="comp-row"><span class="comp-dot done"></span><span class="comp-name">工程实现</span><span class="comp-state done">已完成</span></div>
+          <div class="comp-row current" aria-current="step"><span class="comp-dot current"></span><span class="comp-name">系统设计</span><span class="comp-state current">本题观察</span></div>
+          <div class="comp-row current"><span class="comp-dot current"></span><span class="comp-name">问题分析</span><span class="comp-state current">本题观察</span></div>
+          <div class="comp-row current"><span class="comp-dot current"></span><span class="comp-name">沟通表达</span><span class="comp-state current">本题观察</span></div>
+          <div class="comp-row"><span class="comp-dot"></span><span class="comp-name">安全与合规</span><span class="comp-state">未开始</span></div>
+          <div class="comp-row"><span class="comp-dot"></span><span class="comp-name">持续学习</span><span class="comp-state">未开始</span></div>
+        </div>
+        <div class="section-label">证据摘要</div>
+        <div class="summary-card"><div class="summary-title"><span>当前会话</span><button onclick="toggleEvidence(document.querySelector('.evidence-toggle'))">查看详情</button></div><div class="summary-grid"><div class="summary-cell"><strong>8</strong><span>正向</span></div><div class="summary-cell"><strong>2</strong><span>待补充</span></div><div class="summary-cell"><strong>0</strong><span>不确定</span></div></div></div>
+        <div class="controls"><button class="control">暂停测评</button><button class="control primary">继续回答</button><button class="control danger">结束测评</button></div>
+      </aside>
+    </main>
+    <button class="mobile-switcher" onclick="toggleWorkbench()">查看测评进度</button>
+  </div>
+  <script>
+    function toggleEvidence(button) {
+      if (!button) return;
+      const panel = button.nextElementSibling || document.querySelector('.evidence-map');
+      const open = panel.classList.toggle('open');
+      button.setAttribute('aria-expanded', String(open));
+      button.textContent = open ? '收起能力证据分配 ▴' : '查看本题如何计入能力项 ▾';
+    }
+    function toggleWorkbench() { document.getElementById('workbench').classList.toggle('open'); }
+  </script>
+</body>
+</html>

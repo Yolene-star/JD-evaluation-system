@@ -1,0 +1,59 @@
+<style>
+  .wb { width:min(620px,100%); margin:auto; background:#f7f9f8; color:#233430; border:1px solid #dce7e3; border-radius:14px; overflow:hidden; font-family:Inter,system-ui,"Microsoft YaHei",sans-serif; box-shadow:0 12px 30px #1d423414; }
+  .wb-head { padding:18px 20px 14px; background:#fff; border-bottom:1px solid #e5ece9; }
+  .head-line { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .head-line strong { font-size:17px; }
+  .sub { color:#71817c; font-size:12px; margin-top:5px; }
+  .stage { color:#17786c; background:#e8f4f0; border-radius:7px; padding:6px 8px; font-size:11px; white-space:nowrap; }
+  .steps { display:flex; gap:5px; align-items:center; margin-top:16px; font-size:11px; color:#82918d; }
+  .steps i { width:18px; height:18px; border-radius:50%; display:grid; place-items:center; background:#dbe7e3; font-style:normal; }
+  .steps .done i { background:#238b7b; color:white; }
+  .steps .active i { background:#f0bd69; color:#694719; }
+  .steps b { height:1px; flex:1; background:#dbe7e3; }
+  .tabs { display:flex; gap:22px; padding:0 20px; background:#fff; border-bottom:1px solid #e5ece9; }
+  .tab { padding:13px 0 11px; color:#71817c; font-size:13px; border-bottom:2px solid transparent; }
+  .tab.active { color:#176f64; font-weight:700; border-color:#1d8b7d; }
+  .content { padding:16px 20px 90px; }
+  .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+  .search { flex:1; border:1px solid #d9e5e0; background:#fff; border-radius:8px; padding:10px 11px; color:#80908b; font-size:12px; }
+  .filter { border:1px solid #d9e5e0; background:#fff; border-radius:8px; padding:9px 10px; color:#52645e; font-size:12px; }
+  .summary { display:flex; justify-content:space-between; align-items:center; margin:4px 0 9px; }
+  .summary strong { font-size:13px; }
+  .summary span { color:#a96d22; font-size:11px; }
+  .row { background:#fff; border:1px solid #e2ebe8; border-radius:9px; padding:13px; margin:8px 0; }
+  .row.warn { border-color:#e9c989; background:#fffdf8; }
+  .row-top { display:flex; justify-content:space-between; gap:12px; }
+  .row-title { font-weight:650; font-size:13px; }
+  .weight { color:#17786c; font-size:12px; white-space:nowrap; }
+  .row-meta { display:flex; gap:10px; color:#7a8985; font-size:11px; margin-top:7px; }
+  .tag { color:#a56d25; background:#fff2d9; border-radius:5px; padding:2px 5px; }
+  .row-action { border:0; background:none; padding:0; color:#176f64; font-size:11px; margin-top:9px; cursor:pointer; }
+  .footer { position:relative; margin-top:-74px; padding:13px 20px; background:#fff; border-top:1px solid #e1eae7; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .footer-copy { font-size:11px; color:#71817c; line-height:1.5; }
+  .footer-copy b { color:#865819; display:block; font-size:12px; }
+  .actions { display:flex; gap:7px; }
+  button { border:0; border-radius:7px; padding:9px 11px; font-size:11px; font-weight:650; cursor:pointer; }
+  .ghost { background:#edf3f1; color:#52645e; }
+  .confirm { background:#badfd5; color:#22534b; }
+  @media(max-width:520px){.wb{border-radius:0}.content,.wb-head,.tabs,.footer{padding-left:15px;padding-right:15px}.footer{align-items:flex-start;flex-direction:column}.actions{width:100%}.actions button{flex:1}}
+</style>
+
+<div class="wb">
+  <div class="wb-head">
+    <div class="head-line">
+      <div><strong>阶段一 · 岗位模型</strong><div class="sub">总模型 v0.9 草稿 · 来自 6 份 JD</div></div>
+      <div class="stage">待确认 2 项</div>
+    </div>
+    <div class="steps"><span class="done"><i>1</i> JD获取</span><b></b><span class="done"><i>2</i> 单份解析</span><b></b><span class="active"><i>3</i> 总模型</span><b></b><span><i>4</i> 确认</span></div>
+  </div>
+  <div class="tabs"><div class="tab active">总模型</div><div class="tab">单份 JD 模型</div></div>
+  <div class="content">
+    <div class="toolbar"><div class="search">搜索能力项或关键词</div><div class="filter">全部状态⌄</div></div>
+    <div class="summary"><strong>聚合能力项 · 8 项</strong><span>2 项待确认</span></div>
+    <div class="row"><div class="row-top"><div class="row-title">需求分析与问题拆解</div><div class="weight">24% · 高</div></div><div class="row-meta"><span>来源 JD 6/6</span><span>证据 14 条</span><span>可信度 高</span></div><button class="row-action">查看依据与来源 →</button></div>
+    <div class="row"><div class="row-top"><div class="row-title">技术方案设计</div><div class="weight">20% · 高</div></div><div class="row-meta"><span>来源 JD 5/6</span><span>证据 9 条</span><span>可信度 高</span></div><button class="row-action">查看依据与来源 →</button></div>
+    <div class="row warn"><div class="row-top"><div class="row-title">跨团队沟通协作</div><div class="weight">16% · 中</div></div><div class="row-meta"><span>来源 JD 4/6</span><span class="tag">待确认</span></div><button class="row-action">处理冲突 →</button></div>
+    <div class="row warn"><div class="row-top"><div class="row-title">交付与质量意识</div><div class="weight">14% · 中</div></div><div class="row-meta"><span>来源 JD 3/6</span><span class="tag">待确认</span></div><button class="row-action">处理冲突 →</button></div>
+  </div>
+  <div class="footer"><div class="footer-copy"><b>模型暂不能确认</b>处理待确认项后，可冻结为 v1.0</div><div class="actions"><button class="ghost">查看摘要</button><button class="confirm">确认模型版本</button></div></div>
+</div>

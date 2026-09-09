@@ -1,0 +1,36 @@
+<style>
+  .detail { width:min(620px,100%); margin:auto; background:#f7f9f8; color:#233430; border:1px solid #dce7e3; border-radius:14px; overflow:hidden; font-family:Inter,system-ui,"Microsoft YaHei",sans-serif; box-shadow:0 12px 30px #1d423414; }
+  .top { padding:16px 20px 14px; background:#fff; border-bottom:1px solid #e5ece9; }
+  .back { border:0; background:none; padding:0; color:#18766a; font-size:12px; cursor:pointer; }
+  .title { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-top:15px; }
+  .title h3 { margin:0; font-size:18px; }
+  .title p { margin:5px 0 0; color:#71817c; font-size:12px; }
+  .pill { background:#e8f4f0; color:#16766a; border-radius:7px; padding:6px 8px; font-size:11px; white-space:nowrap; }
+  .body { padding:16px 20px 92px; }
+  .facts { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:18px; }
+  .fact { background:#fff; border:1px solid #e2ebe8; border-radius:8px; padding:10px; }
+  .fact span { display:block; color:#778782; font-size:11px; }.fact b{display:block;margin-top:5px;font-size:14px}
+  .section { margin-top:16px; }.section h4{font-size:13px;margin:0 0 8px}.hint{color:#73827e;font-size:11px}
+  .source { background:#fff; border-left:3px solid #75b9aa; border-top:1px solid #e2ebe8; border-right:1px solid #e2ebe8; border-bottom:1px solid #e2ebe8; border-radius:0 8px 8px 0; padding:11px 12px; margin:7px 0; font-size:12px; line-height:1.6; }
+  .source small{display:block;color:#7c8c87;font-size:10px;margin-bottom:4px}.quote{color:#334b45}.mark{background:#e8f4f0;color:#166f63;padding:1px 3px;border-radius:3px}
+  .formula { background:#edf5f2; border-radius:8px; padding:11px 12px; color:#45645d; font-size:11px; line-height:1.6; }
+  .decision { background:#fffaf0; border:1px solid #eed9b5; border-radius:8px; padding:11px 12px; font-size:12px; line-height:1.55; }.decision b{color:#875719}
+  .footer { position:relative; margin-top:-76px; padding:13px 20px; background:#fff; border-top:1px solid #e1eae7; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .footer small{color:#71817c;font-size:11px}.buttons{display:flex;gap:7px}button.action{border:0;border-radius:7px;padding:9px 11px;font-size:11px;font-weight:650;cursor:pointer}.secondary{background:#edf3f1;color:#52645e}.primary{background:#f0c67e;color:#704a17}
+  @media(max-width:520px){.detail{border-radius:0}.top,.body,.footer{padding-left:15px;padding-right:15px}.facts{grid-template-columns:repeat(3,1fr)}.footer{align-items:flex-start;flex-direction:column}.buttons{width:100%}.buttons button{flex:1}}
+</style>
+
+<div class="detail">
+  <div class="top">
+    <button class="back">← 返回总模型</button>
+    <div class="title"><div><h3>跨团队沟通协作</h3><p>总模型能力项 · 聚合自 4/6 份 JD</p></div><div class="pill">待确认</div></div>
+  </div>
+  <div class="body">
+    <div class="facts"><div class="fact"><span>当前权重</span><b>16%</b></div><div class="fact"><span>要求等级</span><b>中级</b></div><div class="fact"><span>可信度</span><b>中</b></div></div>
+    <div class="section"><h4>为什么识别为这项能力</h4><div class="hint">Agent 根据原文任务、要求强度和岗位能力词库进行归纳</div></div>
+    <div class="section"><h4>来源证据</h4><div class="source"><small>产品经理 JD · 第 3 段</small><div class="quote">“负责协调研发、设计与业务团队，推动需求按计划落地。”</div></div><div class="source"><small>项目管理 JD · 任职要求</small><div class="quote">“具备跨部门沟通能力，能够处理项目推进中的分歧。”</div></div></div>
+    <div class="section"><h4>规范化依据</h4><div class="formula">原文表达：协调团队、跨部门沟通、推动协作<br>归一词条：跨团队沟通协作<br>匹配可信度：0.86</div></div>
+    <div class="section"><h4>当前待确认原因</h4><div class="decision"><b>存在两个可能的处理方式</b><br>合并“沟通协作”和“跨部门协同”，或保留为两个能力项。Agent 建议合并，但需要你的确认。</div></div>
+  </div>
+  <div class="footer"><small>处理决定会写入模型版本记录</small><div class="buttons"><button class="action secondary">暂不处理</button><button class="action primary">合并为一项</button></div></div>
+</div>

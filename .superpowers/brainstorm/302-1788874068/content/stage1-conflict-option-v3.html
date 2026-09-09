@@ -1,0 +1,17 @@
+<style>
+  .demo{width:min(620px,100%);margin:auto;background:#f7f9f8;color:#233430;border:1px solid #dce7e3;border-radius:14px;padding:22px;font-family:Inter,system-ui,"Microsoft YaHei",sans-serif;box-sizing:border-box}.label{font-size:13px;font-weight:700;margin-bottom:10px}.option{display:grid;grid-template-columns:20px 1fr;gap:10px;background:#fff;border:1px solid #dde9e5;border-radius:9px;padding:13px 14px;margin:8px 0}.option.selected{border:2px solid #278b7d;padding:12px 13px;background:#f0f8f5}.radio{width:16px;height:16px;border:1.5px solid #aabdb7;border-radius:50%;margin-top:2px;box-sizing:border-box}.selected .radio{border:5px solid #238b7b}.title{font-size:13px;font-weight:700;line-height:1.4}.desc{font-size:11px;color:#71817c;line-height:1.55;margin-top:4px}.edit-row{display:flex;gap:8px;align-items:center;margin-top:11px;padding-top:10px;border-top:1px solid #e5efeb}.input{flex:1;min-width:0;border:1px solid #cdded8;background:#fff;border-radius:7px;padding:9px 10px;color:#354d46;font-size:11px;box-sizing:border-box}.edit{border:0;background:#e5efeb;color:#39625a;border-radius:7px;padding:9px 11px;font-size:11px;white-space:nowrap;cursor:pointer}.tip{margin-top:14px;color:#7b8985;font-size:10px}
+  @media(max-width:430px){.demo{padding:16px}.edit-row{align-items:stretch;flex-direction:column}.edit{width:100%}}
+/* 编辑输入框与按钮使用同一尺寸，形成统一操作组 */
+.edit-row .input,
+.edit-row .edit { height:36px; box-sizing:border-box; }
+.edit-row .input { padding-top:0; padding-bottom:0; padding-left:12px; padding-right:12px; font-size:13px; line-height:36px; }
+.edit-row .edit { padding-top:0; padding-bottom:0; padding-left:14px; padding-right:14px; font-size:12px; }
+</style>
+
+<div class="demo">
+  <div class="label">请选择处理方式</div>
+  <div class="option"><div class="radio"></div><div><div class="title">合并为一项</div><div class="desc">统一命名为“跨团队沟通协作”，保留两组原文表达和全部证据。</div></div></div>
+  <div class="option"><div class="radio"></div><div><div class="title">保留为两项能力</div><div class="desc">分别建立“沟通协作”和“跨部门协同”，适合需要分别考察的情况。</div></div></div>
+  <div class="option selected"><div class="radio"></div><div><div class="title">修改后再合并</div><div class="desc">先自定义能力名称或补充说明，再将两组证据归入同一项。</div><div class="edit-row"><div class="input">跨团队沟通协作</div><button class="edit">编辑名称</button></div></div></div>
+  <div class="tip">调整后的输入区域只在选择“修改后再合并”时展开，避免干扰其他处理方式。</div>
+</div>

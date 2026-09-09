@@ -1,0 +1,66 @@
+<style>
+  .screen { background:#f5f7f6; color:#22312f; padding:24px; border-radius:16px; font-family:Inter,system-ui,"Microsoft YaHei",sans-serif; }
+  .appbar { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #dfe8e4; padding-bottom:16px; margin-bottom:18px; }
+  .appbar strong { font-size:18px; }
+  .status { color:#16756b; background:#e5f3ef; padding:7px 10px; border-radius:8px; font-size:12px; }
+  .progress { display:flex; gap:6px; margin:16px 0 20px; }
+  .progress span { height:5px; flex:1; border-radius:5px; background:#d6e3df; }
+  .progress span.done { background:#1c8b7d; }
+  .layout { display:grid; grid-template-columns:1fr 300px; gap:16px; }
+  .panel { background:white; border:1px solid #e0e8e5; border-radius:12px; padding:16px; }
+  .panel h3 { margin:0 0 6px; font-size:15px; }
+  .muted { color:#70807c; font-size:12px; }
+  .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:14px 0; }
+  .metric { background:#f7faf9; border-radius:9px; padding:10px; }
+  .metric b { display:block; font-size:18px; margin-top:3px; }
+  .ability { display:flex; justify-content:space-between; border-top:1px solid #edf2f0; padding:12px 0; font-size:13px; }
+  .ability em { color:#bd7a22; font-style:normal; font-size:11px; }
+  .drawer { border-left:3px solid #d68c2a; background:#fffaf1; }
+  .drawer h4 { margin:0 0 10px; font-size:14px; }
+  .issue { border:1px solid #eed9b5; background:#fff; border-radius:9px; padding:10px; margin:9px 0; font-size:12px; line-height:1.55; }
+  .issue b { color:#875719; }
+  .evidence { color:#566b65; margin-top:5px; }
+  .actionbar { margin-top:16px; background:#203d39; color:white; border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .actionbar small { color:#bdd1cc; display:block; margin-top:3px; }
+  .buttons { display:flex; gap:8px; }
+  button { border:0; border-radius:8px; padding:9px 12px; font-weight:600; font-size:12px; cursor:pointer; }
+  .secondary { color:#dceae6; background:#315952; }
+  .primary { color:#6f4a16; background:#f1c477; }
+  @media (max-width:720px) { .layout{grid-template-columns:1fr}.drawer{border-left:0;border-top:3px solid #d68c2a}.metrics{grid-template-columns:repeat(2,1fr)}.actionbar{align-items:flex-start;flex-direction:column}.buttons{width:100%}.buttons button{flex:1} }
+</style>
+
+<div class="screen">
+  <div class="appbar">
+    <div><strong>岗位胜任力模型</strong><div class="muted">总模型 · v0.9 草稿</div></div>
+    <div class="status">解析已完成 · 待确认 2 项</div>
+  </div>
+  <div class="progress"><span class="done"></span><span class="done"></span><span class="done"></span><span></span></div>
+  <div class="layout">
+    <section class="panel">
+      <h3>聚合结论</h3>
+      <div class="muted">来自 6 份 JD，覆盖 3 个相近岗位方向</div>
+      <div class="metrics">
+        <div class="metric"><span class="muted">核心能力</span><b>8</b></div>
+        <div class="metric"><span class="muted">平均可信度</span><b>高</b></div>
+        <div class="metric"><span class="muted">来源 JD</span><b>6</b></div>
+        <div class="metric"><span class="muted">风险提醒</span><b>2</b></div>
+      </div>
+      <div class="ability"><span>需求分析与问题拆解</span><span>权重 24% · 高</span></div>
+      <div class="ability"><span>技术方案设计</span><span>权重 20% · 高</span></div>
+      <div class="ability"><span>跨团队沟通协作 <em>待确认</em></span><span>权重 16% · 中</span></div>
+      <div class="ability"><span>交付与质量意识</span><span>权重 14% · 中</span></div>
+    </section>
+    <aside class="panel drawer">
+      <h4>待确认项</h4>
+      <div class="muted">不处理也可以继续浏览，但模型暂时不能确认。</div>
+      <div class="issue"><b>01 · 能力是否合并</b><br>“沟通协作”与“跨部门协同”在 4 份 JD 中表达不同。<div class="evidence">涉及 JD：产品经理、项目管理、业务分析</div></div>
+      <div class="issue"><b>02 · 要求等级差异</b><br>同一能力在两份 JD 中分别被识别为“熟练”和“精通”。<div class="evidence">建议：保留中位等级，标记为中可信</div></div>
+      <button class="secondary">暂不处理</button>
+      <button class="primary">处理待确认项</button>
+    </aside>
+  </div>
+  <div class="actionbar">
+    <div><strong>模型尚不能确认</strong><small>处理关键冲突后，可冻结为 v1.0 并进入模拟面试</small></div>
+    <div class="buttons"><button class="secondary">查看模型摘要</button><button class="primary">确认模型版本</button></div>
+  </div>
+</div>

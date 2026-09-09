@@ -1,0 +1,26 @@
+<h2>确定统一外壳的响应式降级方式</h2>
+<p class="subtitle">A 方案已确定。现在比较桌面、平板和手机上的工作台行为；重点是三个阶段始终保持同一种交互逻辑。</p>
+
+<div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#f8fafc">
+      <div style="height:230px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:30px;border-bottom:1px solid #e2e8f0;padding:0 8px;display:flex;align-items:center;font-size:9px;color:#475569"><b>项目</b><span style="margin-left:auto">JD分析　面试　报告</span></div>
+        <div style="flex:1;display:grid;grid-template-columns:38px 1.2fr 1fr">
+          <div style="background:#f8fafc;border-right:1px solid #e2e8f0"></div><div style="padding:9px;border-right:1px solid #e2e8f0"><div style="height:26px;width:70%;background:#ede9fe;border-radius:8px;margin-bottom:8px"></div><div style="height:26px;width:56%;background:#f1f5f9;border-radius:8px;margin-left:auto"></div><div style="height:32px;background:#ecfeff;border-radius:7px;margin-top:10px"></div></div><div style="padding:9px"><div style="height:35px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px"></div><div style="height:66px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body"><h3>A　按宽度自动收缩（推荐）</h3><p>桌面三栏；平板自动收起项目导航；手机保留对话主屏，工作台从底部或右侧抽屉打开。</p></div>
+  </div>
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#f8fafc"><div style="height:230px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;overflow:hidden"><div style="height:30px;border-bottom:1px solid #e2e8f0;padding:0 8px;font-size:9px;display:flex;align-items:center"><b>项目　JD分析</b><button style="margin-left:auto;font-size:8px">工作台</button></div><div style="padding:12px 28px"><div style="height:30px;width:62%;background:#ede9fe;border-radius:8px"></div><div style="height:28px;width:48%;background:#f1f5f9;border-radius:8px;margin:10px 0 0 auto"></div><div style="height:42px;width:76%;background:#ecfeff;border-radius:7px;margin-top:10px"></div></div></div></div>
+    <div class="card-body"><h3>B　始终单栏 + 手动切换</h3><p>所有设备都只显示一个主区，用户点击“工作台”切换；实现简单，但需要频繁来回查看证据和对话。</p></div>
+  </div>
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#f8fafc"><div style="height:230px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;overflow:hidden"><div style="height:30px;border-bottom:1px solid #e2e8f0;padding:0 8px;font-size:9px;display:flex;align-items:center"><b>项目　JD分析</b><span style="margin-left:auto">☰</span></div><div style="display:grid;grid-template-columns:1fr 1fr;padding:10px;gap:8px"><div><div style="height:26px;width:66%;background:#ede9fe;border-radius:8px;margin-bottom:8px"></div><div style="height:32px;background:#f1f5f9;border-radius:7px"></div></div><div><div style="height:42px;background:#ecfeff;border-radius:7px"></div><div style="height:55px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;margin-top:8px"></div></div></div></div></div>
+    <div class="card-body"><h3>C　自适应双栏比例</h3><p>无论屏幕宽度都尽量保留对话和工作台，通过压缩内容与横向滚动适配；对复杂表格较友好，但移动端易拥挤。</p></div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px"><div class="pros-cons"><div class="pros"><h4>建议采用 A</h4><ul><li>桌面效率高，手机仍能完成核心流程</li><li>状态、对话和工作台的逻辑不变</li><li>避免移动端横向滚动</li></ul></div><div class="cons"><h4>需要共同确定的细节</h4><ul><li>手机工作台用底部抽屉还是全屏页</li><li>面试时是否默认隐藏工作台</li><li>哪些操作必须保持可见</li></ul></div></div></div>

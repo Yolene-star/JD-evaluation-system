@@ -1,0 +1,19 @@
+<style>
+  .edit { width:min(620px,100%); margin:auto; background:#f7f9f8; color:#233430; border:1px solid #dce7e3; border-radius:14px; overflow:hidden; font-family:Inter,system-ui,"Microsoft YaHei",sans-serif; box-shadow:0 12px 30px #1d423414; }
+  .head { background:#fff; padding:16px 20px 14px; border-bottom:1px solid #e3ece8; }.back{border:0;background:none;padding:0;color:#17776b;font-size:12px}.heading{display:flex;justify-content:space-between;gap:10px;margin-top:14px}.heading h3{margin:0;font-size:17px}.heading p{margin:5px 0 0;color:#73827e;font-size:11px}.draft{color:#9b6928;background:#fff2d9;padding:6px 8px;border-radius:6px;font-size:11px;white-space:nowrap}
+  .body{padding:17px 20px 94px}.label{display:block;color:#61736d;font-size:11px;margin:14px 0 6px}.input,.select{width:100%;box-sizing:border-box;border:1px solid #d7e4df;background:#fff;border-radius:8px;padding:10px 11px;color:#263a35;font-size:12px}.select{display:flex;justify-content:space-between}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.range{display:flex;align-items:center;gap:9px}.range-bar{height:5px;flex:1;background:#c6e1da;border-radius:5px}.range-knob{width:14px;height:14px;border-radius:50%;background:#208879}.percent{font-weight:700;font-size:13px;color:#176e63}.hint{font-size:10px;color:#87958f;margin-top:6px;line-height:1.45}.impact{margin-top:17px;border:1px solid #dbe9e4;border-radius:9px;background:#f0f8f5;padding:11px 12px;font-size:11px;line-height:1.55}.impact b{color:#176e63}.source{margin-top:16px;padding-top:13px;border-top:1px solid #e3ece8;color:#71807b;font-size:11px}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip{background:#fff;border:1px solid #dbe7e3;border-radius:6px;padding:5px 7px;color:#53665f}
+  .footer{position:relative;margin-top:-78px;padding:13px 20px;background:#fff;border-top:1px solid #e1eae7;display:flex;align-items:center;justify-content:space-between;gap:10px}.footer small{color:#75847f;font-size:10px;line-height:1.4}.buttons{display:flex;gap:7px}button.action{border:0;border-radius:7px;padding:9px 11px;font-size:11px;font-weight:650;cursor:pointer}.cancel{background:#edf3f1;color:#52645e}.save{background:#1e8375;color:#fff}
+  @media(max-width:520px){.edit{border-radius:0}.head,.body,.footer{padding-left:15px;padding-right:15px}.footer{align-items:flex-start;flex-direction:column}.buttons{width:100%}.buttons button{flex:1}}
+</style>
+
+<div class="edit">
+  <div class="head"><button class="back">← 返回能力详情</button><div class="heading"><div><h3>编辑能力项</h3><p>修改内容会生成新的模型草稿，不覆盖已确认版本</p></div><div class="draft">草稿 v0.9</div></div></div>
+  <div class="body">
+    <label class="label">能力名称</label><div class="input">跨团队沟通协作</div>
+    <div class="grid"><div><label class="label">能力分类</label><div class="select">通用协作能力 <span>⌄</span></div></div><div><label class="label">要求等级</label><div class="select">中级 <span>⌄</span></div></div></div>
+    <label class="label">模型权重</label><div class="range"><div class="range-bar"><div class="range-knob"></div></div><span class="percent">16%</span></div><div class="hint">调整后，其他能力权重将按比例重新归一化。建议范围：10% - 25%。</div>
+    <div class="impact"><b>保存前影响预览</b><br>该能力覆盖 4/6 份 JD。权重从 16% 调整为 18% 后，需求分析与问题拆解将从 24% 调整为 23%。</div>
+    <div class="source"><b>关联依据不会被删除</b><div class="chips"><span class="chip">来源证据 8 条</span><span class="chip">规范词条 1 个</span><span class="chip">待确认冲突 1 项</span></div></div>
+  </div>
+  <div class="footer"><small>保存后会记录操作者、时间和变更前后值</small><div class="buttons"><button class="action cancel">取消</button><button class="action save">保存为草稿</button></div></div>
+</div>
