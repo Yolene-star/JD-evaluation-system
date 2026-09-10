@@ -17,7 +17,9 @@ from backend.app.models import (
     AssessmentTurnType,
     CompetencyAssessment,
     CompetencyAssessmentStatus,
+    Evidence,
     EvidenceObservation,
+    JobDescription,
     ModelSnapshot,
     ModelVersion,
     ModelVersionStatus,
@@ -220,6 +222,57 @@ def test_interview_agent_retryable_failure_preserves_answer_and_state() -> None:
         assert list(
             db.scalars(select(EvidenceObservation).where(EvidenceObservation.turn_id == answer.id))
         ) == []
+    finally:
+        db.close()
+
+
+def test_interview_agent_passes_frozen_answer_competency_jd_evidence_and_prior_transcript() -> None:
+    db, session, answer = session_factory()
+    captured: dict = {}
+    try:
+        jd = JobDescription(project_id=session.project_id, title="后端工程师", raw_text="负责系统设计；完成容量评估。")
+        db.add(jd)
+        db.flush()
+        referenced = Evidence(jd_id=jd.id, excerpt="负责系统设计")
+        unrelated = Evidence(jd_id=jd.id, excerpt="完成容量评估")
+        db.add_all([referenced, unrelated])
+        db.flush()
+        snapshot = db.scalar(select(ModelSnapshot).where(ModelSnapshot.model_version_id == session.model_version_id))
+        snapshot.snapshot_json = {
+            "project_id": session.project_id,
+            "competencies": [
+                {
+                    "id": "c-1",
+                    "name": "系统设计",
+                    "description": "设计可靠系统",
+                    "weight": 1.0,
+                    "jd_evidence_ids": [referenced.id],
+                    "indicators": ["容量与可靠性权衡"],
+                    "evidence_requirements": ["本人行动", "可验证结果"],
+                },
+                {"id": "c-2", "name": "能力2", "description": "", "weight": 0.0, "jd_evidence_ids": []},
+            ],
+        }
+        db.flush()
+
+        class CapturingEvidenceTool(FixedEvidenceTool):
+            def analyze(self, **kwargs):
+                captured.update(kwargs)
+                return super().analyze(**kwargs)
+
+        InterviewAgent(
+            db,
+            evidence_tool=CapturingEvidenceTool("SUFFICIENT"),
+            question_tool=FixedQuestionTool(),
+        ).process_turn(session, answer)
+
+        assert captured["answer"] == answer.content
+        assert captured["competency"].id == "c-1"
+        assert captured["competency"].indicators == ("容量与可靠性权衡",)
+        assert captured["competency"].evidence_requirements == ("本人行动", "可验证结果")
+        assert captured["jd_evidence"] == [{"id": referenced.id, "excerpt": "负责系统设计"}]
+        assert all(item["content"] != answer.content for item in captured["transcript"])
+        assert any(item["content"] == "初始问题" for item in captured["transcript"])
     finally:
         db.close()
 

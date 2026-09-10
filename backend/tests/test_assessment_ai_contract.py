@@ -107,6 +107,35 @@ def test_main_question_transport_receives_grounded_context(monkeypatch) -> None:
     assert result.expected_evidence == []
 
 
+def test_main_question_personalization_is_background_only_and_formal_target_is_frozen(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+    reference = ResumeReference(item_id="r1", item_type="project", prompt_hint="候选人背景提到 React 项目，请邀请其确认贡献。")
+    formal = {"question_goal": "补充系统设计的具体做法、依据和结果", "expected_evidence": ["本人行动", "可验证结果"]}
+
+    def transport(payload, **_kwargs):
+        assert "BACKGROUND_ONLY" in payload["messages"][0]["content"]
+        assert "不可改变正式评估目标" in payload["messages"][0]["content"]
+        assert "prompt_hint" in payload["messages"][1]["content"]
+        return {"choices": [{"message": {"content": '{"content":"请确认 React 项目中的系统设计贡献","covered_competency_ids":["c1"],"turn_type":"MAIN_QUESTION","evaluation_target":"补充系统设计的具体做法、依据和结果","expected_evidence":["本人行动","可验证结果"],"background_reference":{"source_type":"BACKGROUND_ONLY","item_id":"r1","item_type":"project","display_summary":"React 项目"}}'}}]}
+
+    result = generate_main_question(snapshot, list(snapshot.competencies), [], [], transport, agent_context={"formal_target": formal}, resume_reference=reference)
+    assert result.background_reference["item_id"] == "r1"
+    assert result.evaluation_target == formal["question_goal"]
+
+
+def test_main_question_rejects_resume_only_target_and_formal_target_mutation(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+    reference = ResumeReference(item_id="r1", item_type="project", prompt_hint="候选人背景项目")
+
+    def transport(payload, **_kwargs):
+        return {"choices": [{"message": {"content": '{"content":"请介绍 React","covered_competency_ids":["resume-only"],"turn_type":"MAIN_QUESTION","evaluation_target":"评估 React","expected_evidence":[]}'}}]}
+
+    with pytest.raises(InvalidAIResponse):
+        generate_main_question(snapshot, list(snapshot.competencies), [], [], transport, agent_context={"formal_target": {"question_goal": "评估系统设计", "expected_evidence": ["结果"]}}, resume_reference=reference)
+
+
 def test_main_question_rejects_competency_outside_snapshot(monkeypatch) -> None:
     snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
     with pytest.raises(InvalidAIResponse):
@@ -165,6 +194,7 @@ def test_main_question_rejects_mismatched_background_display_summary(monkeypatch
 
 def test_analyze_transport_receives_competency_and_evidence(monkeypatch) -> None:
     monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    monkeypatch.setattr("backend.app.services.assessment_ai.is_llm_analysis_enabled", lambda: True)
     snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
     captured = {}
     def transport(payload, **_kwargs):
@@ -200,12 +230,11 @@ def test_missing_key_uses_deterministic_demo_analysis(monkeypatch) -> None:
 def test_provider_failure_falls_back_to_demo_analysis(monkeypatch) -> None:
     snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
     monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "configured-key")
+    monkeypatch.setattr("backend.app.services.assessment_ai.is_llm_analysis_enabled", lambda: True)
 
     def unavailable(*_args, **_kwargs):
         raise RetryableAIError("provider unavailable")
 
     monkeypatch.setattr("backend.app.services.assessment_ai._call_structured", unavailable)
-    result = analyze_answer(snapshot, snapshot.competencies[0], [], [], "不知道")
-
-    assert result.evidence_sufficiency == "INSUFFICIENT"
-    assert result.needs_follow_up is True
+    with pytest.raises(RetryableAIError, match="provider unavailable"):
+        analyze_answer(snapshot, snapshot.competencies[0], [], [], "不知道")

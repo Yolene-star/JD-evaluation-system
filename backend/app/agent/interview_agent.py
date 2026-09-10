@@ -15,6 +15,7 @@ from ..models import (
     AssessmentTurnType,
     CompetencyAssessment,
     CompetencyAssessmentStatus,
+    Evidence,
     EvidenceObservation,
 )
 from ..services.assessment_ai import (
@@ -96,14 +97,22 @@ class InterviewAgent:
             raise AgentProcessingError("COMPETENCY_NOT_IN_SNAPSHOT")
 
         analyses: list[tuple[CompetencyAssessment, Any, AnalysisResult]] = []
-        transcript = [item.model_dump(mode="json") for item in context_before.conversation]
+        # The submitted turn is already persisted before processing.  The
+        # analysis prompt must receive only prior conversation turns; the
+        # current answer is passed separately as the exact `answer` field.
+        transcript = [
+            item.model_dump(mode="json")
+            for item in context_before.conversation
+            if item.turn_id != answer.id
+        ]
         for competency_id in covered:
             competency = snapshot_by_id[competency_id]
+            jd_evidence = self._jd_evidence_payload(competency)
             try:
                 analysis = self.evidence_tool.analyze(
                     snapshot=snapshot,
                     competency=competency,
-                    jd_evidence=[],
+                    jd_evidence=jd_evidence,
                     transcript=transcript,
                     answer=answer.content,
                 )
@@ -221,10 +230,11 @@ class InterviewAgent:
             )
         else:
             try:
+                jd_evidence = self._jd_evidence_payload(competency)
                 question = self.question_tool.generate(
                     snapshot=snapshot,
                     competencies=[competency],
-                    jd_evidence=[],
+                    jd_evidence=jd_evidence,
                     transcript=[item.model_dump(mode="json") for item in context.conversation],
                     agent_context={
                         "current_competency_state": next(
@@ -255,6 +265,18 @@ class InterviewAgent:
                     evaluation_target=decision.question_goal,
                 )
         return self._persist_question(session, target_id, question)
+
+    def _jd_evidence_payload(self, competency: Any) -> list[dict[str, str]]:
+        evidence_ids = tuple(getattr(competency, "jd_evidence_ids", ()) or ())
+        if not evidence_ids:
+            return []
+        rows = self.db.scalars(select(Evidence).where(Evidence.id.in_(evidence_ids))).all()
+        by_id = {row.id: row for row in rows}
+        return [
+            {"id": evidence_id, "excerpt": by_id[evidence_id].excerpt}
+            for evidence_id in evidence_ids
+            if evidence_id in by_id
+        ]
 
     def _persist_question(
         self,

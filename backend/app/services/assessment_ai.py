@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..config import get_llm_api_key, settings
+from ..config import get_llm_api_key, is_llm_analysis_enabled, settings
 from ..models import EvidenceType
 
 
@@ -284,15 +284,21 @@ def analyze_answer(snapshot: Any, competency: Any, jd_evidence: list[Any], trans
         )
         return validate_analysis(result, answer, competency.id)
 
-    # No provider configured: use the deterministic local adapter.
-    if transport is None and not get_llm_api_key():
+    # Offline/demo mode is explicit when analysis is disabled or no provider
+    # key is configured.  Once a configured provider is enabled, failures must
+    # remain retryable instead of being disguised as a length-based result.
+    if not is_llm_analysis_enabled() or not get_llm_api_key():
         return demo_analysis()
-    try:
-        result = _call_structured(build_analysis_prompt(competency, jd_evidence, transcript), {"model_version_id": snapshot.model_version_id, "competency": competency_payload, "jd_evidence": jd_evidence, "answer": answer, "transcript": transcript}, AnalysisResult, transport)
-    except RetryableAIError:
-        # A failed provider must not strand the assessment in an endless retry
-        # loop. The answer is already persisted; analyze it locally instead.
-        if transport is None:
-            return demo_analysis()
-        raise
+    result = _call_structured(
+        build_analysis_prompt(competency, jd_evidence, transcript),
+        {
+            "model_version_id": snapshot.model_version_id,
+            "competency": competency_payload,
+            "jd_evidence": jd_evidence,
+            "answer": answer,
+            "transcript": transcript,
+        },
+        AnalysisResult,
+        transport,
+    )
     return validate_analysis(result, answer, competency.id)
