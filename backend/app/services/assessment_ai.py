@@ -86,6 +86,8 @@ class GeneratedQuestion(BaseModel):
         required = {"source_type", "item_id", "item_type", "display_summary"}
         if set(value) != required or value["source_type"] != "BACKGROUND_ONLY":
             raise ValueError("invalid background reference")
+        if value["item_type"] not in {"education", "project", "skill", "experience"}:
+            raise ValueError("invalid background reference item type")
         if any(not isinstance(item, str) or not item.strip() for item in value.values()):
             raise ValueError("background reference fields must be non-empty strings")
         if len(value["display_summary"]) > 500:
@@ -193,6 +195,8 @@ def generate_main_question(
     )
     if result.covered_competency_ids != ids or result.turn_type != "MAIN_QUESTION":
         raise InvalidAIResponse("AI 修改了题目覆盖能力范围")
+    if resume_reference is None and result.background_reference is not None:
+        raise InvalidAIResponse("AI 虚构了背景引用")
     formal_target = (agent_context or {}).get("formal_target") or {}
     if formal_target:
         if result.evaluation_target != formal_target.get("question_goal"):

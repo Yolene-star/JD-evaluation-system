@@ -1,7 +1,8 @@
 from types import SimpleNamespace
+import pytest
 
 from backend.app.agent.tools import EvidenceTool, QuestionTool, ReportTool, ScoringTool
-from backend.app.services.assessment_ai import GeneratedQuestion
+from backend.app.services.assessment_ai import GeneratedQuestion, RetryableAIError
 from backend.app.agent.schemas import ResumeReference
 
 
@@ -59,6 +60,19 @@ def test_question_tool_forwards_one_background_reference_without_changing_formal
     assert result.evaluation_target == "获取系统设计的岗位相关证据"
     assert result.background_reference["source_type"] == "BACKGROUND_ONLY"
     assert captured["resume_reference"] is reference
+
+
+def test_question_tool_propagates_retryable_provider_failure() -> None:
+    def unavailable(*_args, **_kwargs):
+        raise RetryableAIError("provider unavailable")
+
+    with pytest.raises(RetryableAIError):
+        QuestionTool(generate_fn=unavailable).generate(
+            snapshot=object(),
+            competencies=[SimpleNamespace(id="c-1")],
+            jd_evidence=[],
+            transcript=[],
+        )
 
 
 def test_question_tool_builds_follow_up_from_validated_analysis() -> None:

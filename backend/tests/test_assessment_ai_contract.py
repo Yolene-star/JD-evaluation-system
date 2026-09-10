@@ -71,6 +71,8 @@ def test_generated_question_limits_scope_to_three_ids() -> None:
         GeneratedQuestion(content="问题", covered_competency_ids=[], turn_type="MAIN_QUESTION")
     with pytest.raises(ValueError):
         GeneratedQuestion(content="问题", covered_competency_ids=["c1", "c2", "c3", "c4"], turn_type="MAIN_QUESTION")
+    with pytest.raises(ValueError):
+        GeneratedQuestion(content="问题", covered_competency_ids=["c1"], background_reference={"source_type": "BACKGROUND_ONLY", "item_id": "r1", "item_type": "resume", "display_summary": "背景"})
 
 
 def test_main_question_transport_receives_grounded_context(monkeypatch) -> None:
@@ -121,6 +123,32 @@ def test_main_question_personalization_is_background_only_and_formal_target_is_f
 
     with pytest.raises(InvalidAIResponse):
         generate_main_question(snapshot, list(snapshot.competencies), [], [], transport, agent_context={"formal_target": {"question_goal": "评估系统设计", "expected_evidence": ["结果"]}}, resume_reference=reference)
+
+
+def test_main_question_rejects_fabricated_background_without_reference(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+
+    def transport(payload, **_kwargs):
+        return {"choices": [{"message": {"content": '{"content":"请举例","covered_competency_ids":["c1"],"turn_type":"MAIN_QUESTION","background_reference":{"source_type":"BACKGROUND_ONLY","item_id":"r1","item_type":"project","display_summary":"伪造背景"}}'}}]}
+
+    with pytest.raises(InvalidAIResponse):
+        generate_main_question(snapshot, list(snapshot.competencies), [], [], transport)
+
+
+def test_resume_hint_is_user_payload_only_not_system_prompt(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+    reference = ResumeReference(item_id="r1", item_type="project", prompt_hint="UNTRUSTED_MARKER")
+    captured = {}
+
+    def transport(payload, **_kwargs):
+        captured.update(payload)
+        return {"choices": [{"message": {"content": '{"content":"请举例","covered_competency_ids":["c1"],"turn_type":"MAIN_QUESTION"}'}}]}
+
+    generate_main_question(snapshot, list(snapshot.competencies), [], [], transport, resume_reference=reference)
+    assert "UNTRUSTED_MARKER" not in captured["messages"][0]["content"]
+    assert "UNTRUSTED_MARKER" in captured["messages"][1]["content"]
 
 
 def test_analyze_transport_receives_competency_and_evidence(monkeypatch) -> None:
