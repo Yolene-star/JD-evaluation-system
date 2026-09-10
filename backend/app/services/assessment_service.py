@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..agent.interview_agent import AgentProcessingError, InterviewAgent
 from ..agent.schemas import AgentStatus
 from ..agent.tools import EvidenceTool
-from ..models import AssessmentEvent, AssessmentSession, AssessmentSessionStatus, AssessmentTurn, AssessmentTurnRole, AssessmentTurnType, CompetencyAssessment, CompetencyAssessmentStatus
+from ..models import AssessmentEvent, AssessmentSession, AssessmentSessionStatus, AssessmentTurn, AssessmentTurnRole, AssessmentTurnType, CompetencyAssessment, CompetencyAssessmentStatus, EvidenceObservation
 from .assessment_ai import GeneratedQuestion, InvalidAIResponse, RetryableAIError, analyze_answer, generate_main_question
 from .assessment_contracts import ConfirmedModelSnapshot, get_confirmed_model_snapshot
 from .assessment_events import record_event
@@ -116,6 +116,18 @@ def serialize_session(
     if current_question is None:
         current_question = _question_payload(_latest_question(db, session))
     competencies = [{"competency_id": competency.id, "name": competency.name, "status": item_by_id[competency.id].status if competency.id in item_by_id else CompetencyAssessmentStatus.PENDING, "follow_up_count": item_by_id[competency.id].follow_up_count if competency.id in item_by_id else 0, "evidence_sufficiency": item_by_id[competency.id].evidence_sufficiency if competency.id in item_by_id else "UNCERTAIN"} for competency in snapshot.competencies]
+    competency_names = {item["competency_id"]: item["name"] for item in competencies}
+    observations = list(db.scalars(select(EvidenceObservation).where(EvidenceObservation.session_id == session.id).order_by(EvidenceObservation.created_at, EvidenceObservation.id)))
+    evidence_groups = []
+    for competency_id in dict.fromkeys(item.competency_id for item in observations):
+        assessment = item_by_id.get(competency_id)
+        grouped = [item for item in observations if item.competency_id == competency_id]
+        evidence_groups.append({
+            "competency_id": competency_id,
+            "competency_name": competency_names.get(competency_id, competency_id),
+            "sufficiency": getattr(assessment.evidence_sufficiency, "value", assessment.evidence_sufficiency) if assessment else "UNCERTAIN",
+            "observations": [item.source_excerpt or item.excerpt for item in grouped if item.source_excerpt or item.excerpt],
+        })
     completed = sum(item["status"] in {CompetencyAssessmentStatus.SUFFICIENT, CompetencyAssessmentStatus.EXHAUSTED} for item in competencies)
     if agent_status is None:
         agent_status = _latest_agent_status(db, session.id)
@@ -144,6 +156,7 @@ def serialize_session(
         "retryable": retryable,
         "error": error,
         "agent_status": agent_status.model_dump(mode="json") if isinstance(agent_status, AgentStatus) else agent_status,
+        "evidence_groups": evidence_groups,
         "resume_context": serialize_resume_snapshot(db, session.id),
     }
 

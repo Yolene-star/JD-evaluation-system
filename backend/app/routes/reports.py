@@ -3,7 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import AssessmentReport, AssessmentSession, ReportChatMessage, ReportNarrative, RubricSet
+from ..models import AssessmentReport, AssessmentSession, EvidenceObservation, ReportChatMessage, ReportNarrative, RubricSet
+from ..services.assessment_contracts import get_confirmed_model_snapshot
 from ..services.evidence_package import build_evidence_package
 from ..services.report_service import ReportGenerationError, generate_report
 from ..services.resume_context import get_session_candidate_background
@@ -14,6 +15,19 @@ router = APIRouter(tags=["reports"])
 
 
 def _report_payload(db: Session, report: AssessmentReport) -> dict:
+    session = db.get(AssessmentSession, report.assessment_session_id)
+    competency_names = {}
+    if session is not None:
+        try:
+            snapshot = get_confirmed_model_snapshot(db, session.project_id, session.model_version_id)
+            competency_names = {item.id: item.name for item in snapshot.competencies}
+        except ValueError:
+            pass
+    evidence_ids = {evidence_id for item in report.evaluations for evidence_id in (item.evidence_ids or [])}
+    evidence_by_id = {
+        item.id: item
+        for item in db.scalars(select(EvidenceObservation).where(EvidenceObservation.id.in_(evidence_ids)))
+    } if evidence_ids else {}
     return {
         "id": report.id,
         "assessment_session_id": report.assessment_session_id,
@@ -30,7 +44,7 @@ def _report_payload(db: Session, report: AssessmentReport) -> dict:
         "status": report.status.value,
         "narrative_status": report.narrative_status.value,
         "created_at": report.created_at.isoformat() if report.created_at else None,
-        "evaluations": [{"competency_id": item.competency_id, "status": item.status, "score": item.score, "attainment": item.attainment, "level": item.level, "evidence_ids": item.evidence_ids, "matched_indicator_ids": item.matched_indicator_ids, "negative_evidence_ids": item.negative_evidence_ids, "missing_indicator_ids": item.missing_indicator_ids, "confidence": item.confidence, "rationale": item.rationale} for item in report.evaluations],
+        "evaluations": [{"competency_id": item.competency_id, "name": competency_names.get(item.competency_id, item.competency_id), "status": item.status, "score": item.score, "attainment": item.attainment, "level": item.level, "evidence_ids": item.evidence_ids, "evidence": [{"id": evidence.id, "kind": getattr(evidence.evidence_type, "value", evidence.evidence_type), "text": evidence.summary or evidence.excerpt, "turn_id": evidence.turn_id, "excerpt": evidence.source_excerpt or evidence.excerpt} for evidence_id in (item.evidence_ids or []) if (evidence := evidence_by_id.get(evidence_id)) is not None], "matched_indicator_ids": item.matched_indicator_ids, "negative_evidence_ids": item.negative_evidence_ids, "missing_indicator_ids": item.missing_indicator_ids, "confidence": item.confidence, "rationale": item.rationale} for item in report.evaluations],
         "narrative": ({"overview": {"text": report.narrative.overview, "evidenceIds": report.narrative.cited_evidence_ids}, "strengths": report.narrative.strengths, "weaknesses": report.narrative.weaknesses, "recommendations": report.narrative.recommendations} if report.narrative else None),
         "candidate_background": get_session_candidate_background(db, report.assessment_session_id),
     }

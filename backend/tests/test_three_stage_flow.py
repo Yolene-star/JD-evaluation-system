@@ -21,6 +21,9 @@ def test_three_stage_flow_prints_results(monkeypatch, capsys) -> None:
         session = client.post(f"/api/projects/{project['id']}/assessments", json={"model_version_id": model["id"]}).json()
         started = client.post(f"/api/assessments/{session['id']}/start").json()
         assert started["status"] == "IN_PROGRESS"
+        answer_text = "我负责 React 组件拆分和性能优化，通过监控将页面加载时间降低了 30%。"
+        answered = client.post(f"/api/assessments/{session['id']}/turns", json={"content": answer_text, "idempotency_key": "demo-answer-1"})
+        assert answered.status_code == 200
         finished = client.post(f"/api/assessments/{session['id']}/finish", json={"confirm": True, "reason": "演示完成"})
         assert finished.status_code == 200
         package = client.get(f"/api/assessments/{session['id']}/evidence-package")
@@ -34,6 +37,9 @@ def test_three_stage_flow_prints_results(monkeypatch, capsys) -> None:
         report = client.post(f"/api/assessment-sessions/{session['id']}/reports", json={"evidence_package_id": session["id"], "rubric_set_id": rubric["id"], "idempotency_key": "demo-report-1", "evidence_package": package.json()})
         assert report.status_code == 200
         body = report.json()
+        assert body["evaluations"][0]["name"] == session["competencies"][0]["name"]
+        assert body["evaluations"][0]["evidence"][0]["excerpt"] == answer_text
+        assert body["narrative"] is not None
         print(f"阶段三｜报告：v{body['report_version']}｜匹配度：{body['match_score'] if body['match_score'] is not None else '待评价'}｜叙述：{body['narrative_status']}")
 
     output = capsys.readouterr().out

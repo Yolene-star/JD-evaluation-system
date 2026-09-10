@@ -3,7 +3,7 @@ import * as React from 'react'
 
 function EvaluationRow({ item }: { item: CompetencyEvaluation }) {
   const incomplete = item.status === 'INCOMPLETE' || item.score === null
-  return <article className="report-evaluation"><div><strong>{item.name || item.competencyId}</strong><span className="muted">{incomplete ? '不可完全评价' : `${item.level ?? ''} 档`}</span></div><div className="report-score" aria-label={incomplete ? '不可完全评价' : `得分 ${item.score}`} >{incomplete ? '—' : item.score}<small>{incomplete ? '待补充证据' : '/ 10'}</small></div>{item.rationale && <p>{item.rationale}</p>}{item.evidenceIds?.length ? <details><summary>查看证据（{item.evidenceIds.length}）</summary><p>{item.evidenceIds.join('、')}</p></details> : null}</article>
+  return <article className="report-evaluation"><div><strong>{item.name || item.competencyId}</strong><span className="muted">{incomplete ? '不可完全评价' : `${item.level ?? ''} 档`}</span></div><div className="report-score" aria-label={incomplete ? '不可完全评价' : `得分 ${item.score}`} >{incomplete ? '—' : item.score}<small>{incomplete ? '待补充证据' : '/ 10'}</small></div>{item.rationale && <p>{item.rationale}</p>}{item.evidence?.length ? <details><summary>查看面试验证证据（{item.evidence.length}）</summary>{item.evidence.map(evidence => <blockquote key={evidence.id}>{evidence.excerpt || evidence.text}</blockquote>)}</details> : null}</article>
 }
 
 export function ReportView({ report, onRetryNarrative }: { report: AssessmentReport; onRetryNarrative?: () => void }) {

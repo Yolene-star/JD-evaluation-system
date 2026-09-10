@@ -65,4 +65,14 @@ describe('api client', () => {
     })
     vi.unstubAllGlobals()
   })
+
+  it('maps answer evidence groups for the stage two analysis card', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      session_id: 'session-1', model_version_id: 'model-1', competencies: [], turns: [],
+      evidence_groups: [{ competency_id: 'c-1', competency_name: '系统设计', sufficiency: 'INSUFFICIENT', observations: ['a'] }],
+    }), { status: 200 })))
+    const snapshot = await assessmentApi.snapshot<any>('session-1')
+    expect(snapshot.evidenceGroups).toEqual([{ competencyId: 'c-1', competencyName: '系统设计', sufficiency: 'INSUFFICIENT', observations: ['a'] }])
+    vi.unstubAllGlobals()
+  })
 })

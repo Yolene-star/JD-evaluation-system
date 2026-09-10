@@ -141,6 +141,9 @@ def test_demo_answer_analysis_advances_without_retry_notice(monkeypatch) -> None
         assert state["retryable"] is False
         assert state["error"] is None
         assert state["competencies"][0]["status"] == "FOLLOW_UP"
+        assert state["evidence_groups"][0]["competency_name"] == state["competencies"][0]["name"]
+        assert state["evidence_groups"][0]["sufficiency"] == "INSUFFICIENT"
+        assert state["evidence_groups"][0]["observations"][0] == "我不会"
 
 
 def test_finish_requires_explicit_confirmation_and_composite_targets_are_independent(monkeypatch) -> None:
