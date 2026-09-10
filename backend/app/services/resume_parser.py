@@ -8,6 +8,7 @@ from zipfile import BadZipFile
 
 from docx import Document
 from docx.opc.exceptions import PackageNotFoundError
+from lxml.etree import XMLSyntaxError
 from pypdf import PdfReader
 from pypdf.errors import FileNotDecryptedError, PdfReadError
 
@@ -21,7 +22,13 @@ SUPPORTED_RESUME_TYPES = {
 }
 
 _EMAIL_PATTERN = re.compile(r"(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}")
-_PHONE_PATTERN = re.compile(r"(?<!\d)(?:\+?86[- ]?)?1[3-9]\d{9}(?!\d)")
+_PHONE_PATTERN = re.compile(
+    r"(?<![\w+])(?:\+\d{1,3}[ .-]?)?(?:\(?\d{1,4}\)?[ .-]?){2,5}\d{2,4}(?!\w)"
+)
+_IDENTITY_DOCUMENT_PATTERN = re.compile(
+    r"(?i)\b(?P<label>passport|national\s*id|identity\s*(?:card|document))\s*[:：]\s*"
+    r"(?P<value>[a-z0-9-]{6,20})\b|(?:护照|身份证(?:号)?)\s*[:：]\s*(?P<cn_value>[a-z0-9-]{6,20})"
+)
 _ADDRESS_LINE_PATTERN = re.compile(r"(?:地址|住址|居住地|联系地址|address)\s*[:：]", re.IGNORECASE)
 _CONTROL_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _WHITESPACE_PATTERN = re.compile(r"[ \t\r\f\v]+")
@@ -101,8 +108,10 @@ def _extract(extension: str, content: bytes) -> str:
             raise ResumeParseError("RESUME_CORRUPT") from error
     try:
         document = Document(BytesIO(content))
-        return "\n".join(paragraph.text for paragraph in document.paragraphs)
-    except (BadZipFile, PackageNotFoundError, OSError, ValueError, KeyError) as error:
+        paragraphs = [paragraph.text for paragraph in document.paragraphs]
+        table_cells = [cell.text for table in document.tables for row in table.rows for cell in row.cells]
+        return "\n".join(paragraphs + table_cells)
+    except (BadZipFile, PackageNotFoundError, XMLSyntaxError, OSError, ValueError, KeyError) as error:
         raise ResumeParseError("RESUME_CORRUPT") from error
 
 
@@ -115,9 +124,15 @@ def _redact_and_normalize(text: str) -> list[str]:
             continue
         line = _EMAIL_PATTERN.sub("[已脱敏邮箱]", line)
         line = _PHONE_PATTERN.sub("[已脱敏电话]", line)
+        line = _IDENTITY_DOCUMENT_PATTERN.sub(_redact_identity_document, line)
         if line:
             lines.append(line)
     return lines
+
+
+def _redact_identity_document(match: re.Match[str]) -> str:
+    label = match.group("label") or "证件号"
+    return f"{label}: [已脱敏证件号]"
 
 
 def _structure(segments: list[ResumeSourceSegment]) -> CandidateBackground:
