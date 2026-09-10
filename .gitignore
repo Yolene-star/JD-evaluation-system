@@ -19,3 +19,4 @@ frontend/test-results/
 integrations/jd-extraction/**/dist/
 integrations/jd-extraction/**/build/
 .cleanup-backup/
+.worktrees/
