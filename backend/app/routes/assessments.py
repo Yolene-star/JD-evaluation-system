@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import AssessmentEvent, AssessmentSession, AssessmentSessionStatus, Project
+from ..schemas import AssessmentCreateRequest
 from ..services.assessment_service import AssessmentServiceError, create_session, retry_turn, serialize_session, start_assessment, submit_turn, transition_session
 
 router = APIRouter(tags=["assessments"])
@@ -17,12 +18,26 @@ def get_session(session_id: str, db: Session) -> AssessmentSession:
 
 
 @router.post("/api/projects/{project_id}/assessments")
-def create(project_id: str, payload: dict | None = None, db: Session = Depends(get_db)) -> dict:
+def create(
+    project_id: str,
+    payload: AssessmentCreateRequest | None = None,
+    db: Session = Depends(get_db),
+) -> dict:
     if not db.get(Project, project_id):
         raise HTTPException(status_code=404, detail="项目不存在")
     try:
-        return serialize_session(db, create_session(db, project_id, (payload or {}).get("model_version_id")))
+        request = payload or AssessmentCreateRequest()
+        return serialize_session(
+            db,
+            create_session(
+                db,
+                project_id,
+                request.model_version_id,
+                use_resume_context=request.use_resume_context,
+            ),
+        )
     except ValueError as exc:
+        db.rollback()
         raise HTTPException(status_code=409, detail=str(exc))
 
 

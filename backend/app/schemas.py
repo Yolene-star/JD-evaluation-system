@@ -75,6 +75,11 @@ class AssessmentSessionResponse(BaseModel):
     completed_at: datetime | None = None
 
 
+class AssessmentCreateRequest(BaseModel):
+    model_version_id: str | None = None
+    use_resume_context: bool = False
+
+
 class CompetencyAssessmentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

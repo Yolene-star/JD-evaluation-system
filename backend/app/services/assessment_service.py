@@ -13,6 +13,7 @@ from .assessment_ai import GeneratedQuestion, InvalidAIResponse, RetryableAIErro
 from .assessment_contracts import ConfirmedModelSnapshot, get_confirmed_model_snapshot
 from .assessment_events import record_event
 from .assessment_state import InvalidAssessmentTransition, finish_session, pause_session, resume_session, start_session
+from .resume_context import freeze_resume_snapshot, get_current_resume_context, serialize_resume_snapshot
 
 
 class AssessmentServiceError(ValueError):
@@ -67,11 +68,19 @@ def _make_question(session: AssessmentSession, db: Session, target_ids: list[str
     return _question_payload(turn) or {}
 
 
-def create_session(db: Session, project_id: str, model_version_id: str | None = None) -> AssessmentSession:
+def create_session(
+    db: Session,
+    project_id: str,
+    model_version_id: str | None = None,
+    *,
+    use_resume_context: bool = False,
+) -> AssessmentSession:
     snapshot = get_confirmed_model_snapshot(db, project_id, model_version_id)
     session = AssessmentSession(project_id=project_id, model_version_id=snapshot.model_version_id)
     db.add(session)
     db.flush()
+    if use_resume_context:
+        freeze_resume_snapshot(db, session, get_current_resume_context(db, project_id))
     record_event(db, session.id, "ASSESSMENT_CREATED", {"model_version_id": snapshot.model_version_id})
     db.commit()
     db.refresh(session)
@@ -110,7 +119,33 @@ def serialize_session(
     completed = sum(item["status"] in {CompetencyAssessmentStatus.SUFFICIENT, CompetencyAssessmentStatus.EXHAUSTED} for item in competencies)
     if agent_status is None:
         agent_status = _latest_agent_status(db, session.id)
-    return {"id": session.id, "session_id": session.id, "project_id": session.project_id, "model_version_id": session.model_version_id, "status": session.status, "completion": session.completion, "current_competency_id": session.current_competency_id, "current_question": current_question, "competencies": competencies, "turns": [{"id": turn.id, "role": turn.role, "turn_type": turn.turn_type, "content": turn.content, "covered_competency_ids": turn.covered_competency_ids, "turn_index": turn.turn_index} for turn in turns], "progress": {"completed": completed, "total": len(competencies)}, "retryable": retryable, "error": error, "agent_status": agent_status.model_dump(mode="json") if isinstance(agent_status, AgentStatus) else agent_status}
+    return {
+        "id": session.id,
+        "session_id": session.id,
+        "project_id": session.project_id,
+        "model_version_id": session.model_version_id,
+        "status": session.status,
+        "completion": session.completion,
+        "current_competency_id": session.current_competency_id,
+        "current_question": current_question,
+        "competencies": competencies,
+        "turns": [
+            {
+                "id": turn.id,
+                "role": turn.role,
+                "turn_type": turn.turn_type,
+                "content": turn.content,
+                "covered_competency_ids": turn.covered_competency_ids,
+                "turn_index": turn.turn_index,
+            }
+            for turn in turns
+        ],
+        "progress": {"completed": completed, "total": len(competencies)},
+        "retryable": retryable,
+        "error": error,
+        "agent_status": agent_status.model_dump(mode="json") if isinstance(agent_status, AgentStatus) else agent_status,
+        "resume_context": serialize_resume_snapshot(db, session.id),
+    }
 
 
 def start_assessment(db: Session, session: AssessmentSession) -> dict:

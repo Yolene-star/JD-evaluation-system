@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 import hashlib
+from copy import deepcopy
 
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..models import Project, ResumeContextStatus, ResumeContextVersion
+from ..models import AssessmentSession, Project, ResumeContextStatus, ResumeContextVersion, ResumeSnapshot
 from .audit import record_event
 from .resume_parser import ResumeParseError, parse_resume
 
 RESUME_PARSER_VERSION = "resume-v1"
 MAX_VERSION_ALLOCATION_ATTEMPTS = 3
+
+
+class ResumeContextUnavailable(ValueError):
+    def __init__(self) -> None:
+        super().__init__("RESUME_CONTEXT_NOT_AVAILABLE")
 
 
 def get_current_resume_context(db: Session, project_id: str) -> ResumeContextVersion | None:
@@ -23,6 +29,49 @@ def get_current_resume_context(db: Session, project_id: str) -> ResumeContextVer
         )
         .order_by(ResumeContextVersion.version.desc())
     )
+
+
+def freeze_resume_snapshot(
+    db: Session,
+    session: AssessmentSession,
+    version: ResumeContextVersion | None,
+) -> ResumeSnapshot:
+    """Persist an immutable copy of a READY project resume for one session."""
+    if (
+        version is None
+        or version.status is not ResumeContextStatus.READY
+        or version.project_id != session.project_id
+    ):
+        raise ResumeContextUnavailable()
+    snapshot = ResumeSnapshot(
+        session_id=session.id,
+        resume_context_version_id=version.id,
+        snapshot_json={
+            "source_type": "BACKGROUND_ONLY",
+            "background": deepcopy(version.structured_context_json or {}),
+            "content_sha256": version.content_sha256,
+            "parser_version": version.parser_version,
+        },
+    )
+    db.add(snapshot)
+    db.flush()
+    return snapshot
+
+
+def get_resume_snapshot(db: Session, session_id: str) -> ResumeSnapshot | None:
+    return db.scalar(select(ResumeSnapshot).where(ResumeSnapshot.session_id == session_id))
+
+
+def serialize_resume_snapshot(db: Session, session_id: str) -> dict | None:
+    snapshot = get_resume_snapshot(db, session_id)
+    if snapshot is None:
+        return None
+    return {
+        "source_type": "BACKGROUND_ONLY",
+        "snapshot_id": snapshot.id,
+        "version_id": snapshot.resume_context_version_id,
+        "notice": "简历仅用于个性化提问，不作为评分证据",
+    }
 
 
 def create_resume_version(
