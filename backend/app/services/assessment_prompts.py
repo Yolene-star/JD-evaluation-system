@@ -14,4 +14,4 @@ def build_question_prompt(competencies: list[Any], jd_evidence: list[Any], trans
 
 
 def build_analysis_prompt(competency: Any, jd_evidence: list[Any], transcript: list[Any]) -> str:
-    return f"只分析能力项“{competency.name}”，并结合随请求提供的该能力 JD 证据和本能力对话记录输出结构化 JSON。只能引用当前能力项；evidence 的 excerpt 必须来自用户回答；不要计算正式分数。字段：answer_summary、evidence、evidence_sufficiency、needs_follow_up、follow_up_reason、follow_up_question。"
+    return f"只分析能力项“{competency.name}”，并结合随请求提供的该能力 JD 证据和本能力对话记录输出结构化 JSON。只能引用当前能力项；evidence 的 excerpt 必须逐字来自本轮用户回答，绝不能引用简历或其他背景文本；简历仅用于发现需要澄清的差异，不得作为正式证据、不得提高充分性或评分。若回答与背景信息不一致，输出 evidence_sufficiency=UNCERTAIN、needs_follow_up=true，所有相关证据 type=UNCERTAIN，并使用中性澄清问题，不得出现“造假”“不诚信”等定性。不要计算正式分数。字段：answer_summary、evidence、evidence_sufficiency、needs_follow_up、follow_up_reason、follow_up_question。"

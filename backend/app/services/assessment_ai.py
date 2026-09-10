@@ -117,12 +117,51 @@ def validate_analysis(result: AnalysisResult | dict[str, Any], answer: str, comp
     if any(item.competency_id != competency_id for item in parsed.evidence):
         raise InvalidAIResponse("AI 引用了当前题目之外的能力项")
     observations = []
+    had_ungrounded_excerpt = False
     for item in parsed.evidence:
         if validate_source_excerpt(answer, item.excerpt):
-            observations.append(item)
+            # Preserve a literal answer substring for persistence.  A model
+            # may vary whitespace (for example, insert a newline), but the
+            # stored observation must still be directly traceable to answer.
+            observations.append(
+                item
+                if item.excerpt in answer
+                else item.model_copy(update={"excerpt": answer.strip()})
+            )
         else:
-            observations.append(item.model_copy(update={"type": EvidenceType.UNCERTAIN, "validation_note": "引用片段未在回答原文中定位"}))
-    return ValidatedAnalysis.model_validate({**parsed.model_dump(), "evidence": [item.model_dump() for item in observations]})
+            # Never persist model text that cannot be located in the submitted
+            # answer (in particular, text copied from an optional resume).
+            had_ungrounded_excerpt = True
+            grounded_excerpt = answer.strip()
+            if grounded_excerpt:
+                observations.append(
+                    item.model_copy(
+                        update={
+                            "type": EvidenceType.UNCERTAIN,
+                            "excerpt": grounded_excerpt,
+                            "validation_note": "引用片段未在回答原文中定位；已降级为待澄清证据",
+                        }
+                    )
+                )
+    values = {**parsed.model_dump(), "evidence": [item.model_dump() for item in observations]}
+    if had_ungrounded_excerpt:
+        # A resume/answer discrepancy is uncertainty, not a negative finding.
+        values.update(
+            {
+                "evidence_sufficiency": "UNCERTAIN",
+                "needs_follow_up": True,
+                "follow_up_reason": "回答与背景信息存在需要澄清的差异",
+                "follow_up_question": "为了准确记录这段经历，请你补充说明其中由你本人负责的具体工作、判断依据和结果。",
+            }
+        )
+        values["evidence"] = [
+            {**item, "type": EvidenceType.UNCERTAIN.value}
+            for item in values["evidence"]
+        ]
+    # Provider output must not turn a background discrepancy into an adverse
+    # judgment.  Keep negative observations only when their excerpt is fully
+    # grounded in the candidate's answer.
+    return ValidatedAnalysis.model_validate(values)
 
 
 def _parse_provider_response(body: str, model: type[BaseModel]) -> BaseModel:

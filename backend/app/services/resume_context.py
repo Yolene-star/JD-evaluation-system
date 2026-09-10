@@ -74,6 +74,23 @@ def serialize_resume_snapshot(db: Session, session_id: str) -> dict | None:
     }
 
 
+def get_session_candidate_background(db: Session, session_id: str) -> dict | None:
+    """Return sanitized background metadata from the session's frozen snapshot."""
+    snapshot = get_resume_snapshot(db, session_id)
+    if snapshot is None:
+        return None
+    snapshot_data = snapshot.snapshot_json or {}
+    background = snapshot_data.get("background") or {}
+    return {
+        "source_type": "BACKGROUND_ONLY",
+        "notice": "简历背景信息未作为评分证据",
+        "education": deepcopy(background.get("education") or []),
+        "projects": deepcopy(background.get("projects") or []),
+        "skills": deepcopy(background.get("skills") or []),
+        "experiences": deepcopy(background.get("experiences") or []),
+    }
+
+
 def create_resume_version(
     db: Session,
     project: Project,

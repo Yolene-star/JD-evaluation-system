@@ -30,7 +30,7 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
 export type HealthResponse = { status: 'ok' }
 
 export const assessmentApi = {
-  create: (projectId: string, modelVersionId?: string) => apiFetch(`/api/projects/${projectId}/assessments`, { method: 'POST', body: JSON.stringify(modelVersionId ? { model_version_id: modelVersionId } : {}) }),
+  create: (projectId: string, modelVersionId?: string, useResumeContext = false) => apiFetch(`/api/projects/${projectId}/assessments`, { method: 'POST', body: JSON.stringify({ ...(modelVersionId ? { model_version_id: modelVersionId } : {}), use_resume_context: useResumeContext }) }),
   snapshot: <T>(sessionId: string) => apiFetch<unknown>(`/api/assessments/${sessionId}`).then(raw => mapAssessmentSnapshot(raw) as T),
   start: <T>(sessionId: string) => apiFetch<T>(`/api/assessments/${sessionId}/start`, { method: 'POST' }),
   submit: <T>(sessionId: string, content: string, idempotencyKey: string) => apiFetch<T>(`/api/assessments/${sessionId}/turns`, { method: 'POST', body: JSON.stringify({ content, idempotency_key: idempotencyKey }) }),
@@ -38,6 +38,27 @@ export const assessmentApi = {
   resume: <T>(sessionId: string) => apiFetch<T>(`/api/assessments/${sessionId}/resume`, { method: 'POST' }),
   finish: <T>(sessionId: string, reason = 'user_requested') => apiFetch<T>(`/api/assessments/${sessionId}/finish`, { method: 'POST', body: JSON.stringify({ reason, confirm: true }) }),
   retry: <T>(sessionId: string, idempotencyKey: string) => apiFetch<T>(`/api/assessments/${sessionId}/retry`, { method: 'POST', body: JSON.stringify({ idempotency_key: idempotencyKey }) }),
+}
+
+export type ResumeContextSummary = {
+  id: string
+  version: number
+  status: 'READY' | 'FAILED'
+  source_filename: string
+  media_type: string
+  file_size: number
+  source_type?: string
+  education?: unknown[]
+  projects?: unknown[]
+  skills?: unknown[]
+  experiences?: unknown[]
+  summary?: string
+}
+
+export const resumeApi = {
+  current: (projectId: string) => apiFetch<ResumeContextSummary>(`/api/projects/${projectId}/resume-context`),
+  upload: (projectId: string, file: File) => apiUpload<ResumeContextSummary>(`/api/projects/${projectId}/resume-context`, file),
+  remove: (projectId: string) => apiFetch<void>(`/api/projects/${projectId}/resume-context`, { method: 'DELETE' }),
 }
 
 function mapAssessmentSnapshot(raw: any): any {

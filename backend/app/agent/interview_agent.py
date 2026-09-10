@@ -126,6 +126,11 @@ class InterviewAgent:
             for observation in analysis.evidence:
                 if observation.competency_id != target.competency_id:
                     raise AgentProcessingError("COMPETENCY_SESSION_MISMATCH")
+                if not observation.excerpt or observation.excerpt not in answer.content:
+                    # EvidenceObservation is strictly answer-grounded. Invalid
+                    # provider excerpts are handled by validate_analysis; this
+                    # guard protects custom tools and future integrations.
+                    continue
                 self.db.add(
                     EvidenceObservation(
                         session_id=session.id,

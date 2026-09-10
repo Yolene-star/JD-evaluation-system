@@ -5,6 +5,7 @@ from backend.app.agent.memory import AssessmentMemory
 from backend.app.db import SessionLocal
 from backend.app.main import app
 from backend.app.models import AssessmentSession, ResumeSnapshot
+from backend.app.services.assessment_ai import AnalysisResult, EvidenceResult, validate_analysis
 
 
 def _confirmed_project(client: TestClient) -> dict:
@@ -140,3 +141,31 @@ def test_session_memory_keeps_resume_background_out_of_formal_context() -> None:
         assert context.resume_context.source_type == "BACKGROUND_ONLY"
         assert context.resume_context.projects
         assert "resume_context" not in context.formal_context().model_dump()
+
+
+def test_resume_text_can_never_become_formal_evidence() -> None:
+    """A model excerpt copied from a resume is downgraded and answer-grounded."""
+    result = validate_analysis(
+        AnalysisResult(
+            answer_summary="我确认参与过该项目",
+            evidence=[
+                EvidenceResult(
+                    competency_id="c-1",
+                    type="POSITIVE",
+                    excerpt="简历中的项目成果：性能提升 40%",
+                    summary="背景材料声称有成果",
+                    confidence=0.95,
+                )
+            ],
+            evidence_sufficiency="SUFFICIENT",
+            needs_follow_up=False,
+        ),
+        "我确认参与过该项目，但需要补充具体负责内容。",
+        "c-1",
+    )
+    assert result.evidence_sufficiency == "UNCERTAIN"
+    assert result.needs_follow_up is True
+    assert result.evidence[0].type == "UNCERTAIN"
+    assert result.evidence[0].excerpt in "我确认参与过该项目，但需要补充具体负责内容。"
+    assert "造假" not in result.follow_up_question
+    assert "不诚信" not in result.follow_up_question

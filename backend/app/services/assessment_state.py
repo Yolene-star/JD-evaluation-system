@@ -203,13 +203,18 @@ def apply_analysis(
         raise InvalidAssessmentTransition("analysis cannot be applied to a terminal competency")
 
     db = _require_db(competency_assessment)
-    if _evidence_sufficiency(analysis) == CompetencyAssessmentEvidenceSufficiency.SUFFICIENT.value:
+    sufficiency = _evidence_sufficiency(analysis)
+    if sufficiency == CompetencyAssessmentEvidenceSufficiency.SUFFICIENT.value:
         competency_assessment.status = CompetencyAssessmentStatus.SUFFICIENT
         competency_assessment.evidence_sufficiency = CompetencyAssessmentEvidenceSufficiency.SUFFICIENT
         competency_assessment.completed_at = _now()
         return _advance_or_complete(assessment_session, db)
 
-    competency_assessment.evidence_sufficiency = CompetencyAssessmentEvidenceSufficiency.INSUFFICIENT
+    competency_assessment.evidence_sufficiency = (
+        CompetencyAssessmentEvidenceSufficiency.UNCERTAIN
+        if sufficiency == CompetencyAssessmentEvidenceSufficiency.UNCERTAIN.value
+        else CompetencyAssessmentEvidenceSufficiency.INSUFFICIENT
+    )
     if competency_assessment.follow_up_count < 2:
         competency_assessment.follow_up_count += 1
         competency_assessment.status = CompetencyAssessmentStatus.FOLLOW_UP

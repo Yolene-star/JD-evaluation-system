@@ -6,13 +6,14 @@ from ..db import get_db
 from ..models import AssessmentReport, AssessmentSession, ReportChatMessage, ReportNarrative, RubricSet
 from ..services.evidence_package import build_evidence_package
 from ..services.report_service import ReportGenerationError, generate_report
+from ..services.resume_context import get_session_candidate_background
 from ..services.rubrics import activate_rubric_set, create_default_rubric_set, get_active_rubric_set
 from ..services.report_chat import answer_report_question
 
 router = APIRouter(tags=["reports"])
 
 
-def _report_payload(report: AssessmentReport) -> dict:
+def _report_payload(db: Session, report: AssessmentReport) -> dict:
     return {
         "id": report.id,
         "assessment_session_id": report.assessment_session_id,
@@ -31,6 +32,7 @@ def _report_payload(report: AssessmentReport) -> dict:
         "created_at": report.created_at.isoformat() if report.created_at else None,
         "evaluations": [{"competency_id": item.competency_id, "status": item.status, "score": item.score, "attainment": item.attainment, "level": item.level, "evidence_ids": item.evidence_ids, "matched_indicator_ids": item.matched_indicator_ids, "negative_evidence_ids": item.negative_evidence_ids, "missing_indicator_ids": item.missing_indicator_ids, "confidence": item.confidence, "rationale": item.rationale} for item in report.evaluations],
         "narrative": ({"overview": {"text": report.narrative.overview, "evidenceIds": report.narrative.cited_evidence_ids}, "strengths": report.narrative.strengths, "weaknesses": report.narrative.weaknesses, "recommendations": report.narrative.recommendations} if report.narrative else None),
+        "candidate_background": get_session_candidate_background(db, report.assessment_session_id),
     }
 
 
@@ -57,7 +59,7 @@ def create_report(session_id: str, payload: dict, db: Session = Depends(get_db))
         if rubric is None:
             raise ReportGenerationError("RUBRIC_NOT_ACTIVE")
         report = generate_report(db, session_id, str(payload.get("evidence_package_id") or session_id), package, rubric.id, str(payload.get("idempotency_key") or ""))
-        return _report_payload(report)
+        return _report_payload(db, report)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except (ReportGenerationError, ValueError) as exc:
@@ -69,7 +71,7 @@ def list_reports(session_id: str, db: Session = Depends(get_db)) -> list[dict]:
     if db.get(AssessmentSession, session_id) is None:
         raise HTTPException(status_code=404, detail="测评会话不存在")
     rows = db.scalars(select(AssessmentReport).where(AssessmentReport.assessment_session_id == session_id).order_by(AssessmentReport.report_version.desc())).all()
-    return [_report_payload(row) for row in rows]
+    return [_report_payload(db, row) for row in rows]
 
 
 @router.get("/api/reports/{report_id}")
@@ -77,7 +79,7 @@ def get_report(report_id: str, db: Session = Depends(get_db)) -> dict:
     report = db.get(AssessmentReport, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="报告不存在")
-    return _report_payload(report)
+    return _report_payload(db, report)
 
 
 @router.post("/api/reports/{report_id}/narrative/retry")
@@ -93,7 +95,7 @@ def retry_narrative(report_id: str, db: Session = Depends(get_db)) -> dict:
         incomplete = sum(item.score is None for item in report.evaluations)
         db.add(ReportNarrative(report_id=report.id, overview=("部分能力尚未完成测评，暂不可完全评价。" if incomplete else "报告已根据测评证据生成。"), strengths=[], weaknesses=[], recommendations=[], cited_evidence_ids=[]))
     db.commit()
-    return _report_payload(report)
+    return _report_payload(db, report)
 
 
 @router.get("/api/reports/{report_id}/scoring-policy")
