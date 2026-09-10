@@ -56,5 +56,6 @@ export type AssessmentReport = {
   jobTitle?: string
   evaluations: CompetencyEvaluation[]
   narrative?: ReportNarrative
+  candidateBackground?: { sourceType: 'BACKGROUND_ONLY'; notice: string; education: unknown[]; projects: unknown[]; skills: unknown[]; experiences: unknown[] } | null
   scoringPolicy?: { attainmentFormula: string; partialWeightPolicy: string; incompletePolicy: string }
 }

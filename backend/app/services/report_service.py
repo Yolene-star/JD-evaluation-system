@@ -39,6 +39,27 @@ def _rubric_facts(rubric: RubricSet) -> dict[str, dict]:
     }
 
 
+def _deterministic_narrative(score: object) -> dict:
+    evaluations = list(getattr(score, "evaluations", []) or [])
+    scored = [item for item in evaluations if getattr(item, "score", None) is not None]
+    strengths = [
+        {"text": f"{item.competency_id} 当前证据评分为 {item.score}/10。", "evidence_ids": list(item.evidence_ids or [])}
+        for item in scored if float(item.score or 0) >= 7
+    ]
+    weaknesses = [
+        {"text": f"{item.competency_id} 仍需补充更具体的结果证据。", "evidence_ids": list(item.evidence_ids or [])}
+        for item in evaluations if getattr(item, "score", None) is None or float(item.score or 0) < 7
+    ]
+    evidence_ids = sorted({str(evidence_id) for item in evaluations for evidence_id in (item.evidence_ids or [])})
+    return {
+        "overview": "人才画像基于当前测评证据生成；未覆盖能力不会被推测补全。",
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "recommendations": [{"text": "继续补充带有本人行动、判断依据和可验证结果的项目回答。", "evidence_ids": evidence_ids}],
+        "cited_evidence_ids": evidence_ids,
+    }
+
+
 def generate_report(
     db: Session,
     session_id: str,
@@ -96,9 +117,9 @@ def generate_report(
     for evaluation in score.evaluations:
         db.add(CompetencyEvaluation(report_id=report.id, competency_id=evaluation.competency_id, status=evaluation.status, score=evaluation.score, attainment=evaluation.attainment, level=evaluation.level, evidence_ids=evaluation.evidence_ids, matched_indicator_ids=evaluation.matched_indicator_ids, negative_evidence_ids=evaluation.negative_evidence_ids, missing_indicator_ids=evaluation.missing_indicator_ids, confidence=evaluation.confidence, rationale=evaluation.rationale))
     facts = {"report_id": report.id, "match_score": report.match_score, "match_score_type": report.match_score_type, "evaluations": [evaluation.__dict__ for evaluation in score.evaluations], "evidence_ids": sorted(known_evidence)}
-    if narrative_adapter is not None and not invalid_competency:
+    if not invalid_competency:
         try:
-            narrative = generate_profile_narrative(facts, narrative_adapter)
+            narrative = generate_profile_narrative(facts, narrative_adapter) if narrative_adapter is not None else _deterministic_narrative(score)
             report.narrative_status = ReportNarrativeStatus.READY
             db.add(ReportNarrative(report_id=report.id, overview=narrative["overview"], strengths=narrative["strengths"], weaknesses=narrative["weaknesses"], recommendations=narrative["recommendations"], cited_evidence_ids=narrative["cited_evidence_ids"]))
         except (NarrativeValidationError, Exception):

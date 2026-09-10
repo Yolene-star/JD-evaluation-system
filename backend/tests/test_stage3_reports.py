@@ -79,3 +79,11 @@ def test_invalid_evidence_reference_downgrades_narrative_to_retry() -> None:
         report = generate_report(db, session.id, "ep-1", package, rubric.id, "key-1", narrative_adapter=lambda _: {"overview": "ok", "evidence_ids": ["missing"]})
         assert report.status.value == "READY"
         assert report.narrative_status is ReportNarrativeStatus.PENDING_RETRY
+
+def test_report_includes_deterministic_profile_when_no_llm_adapter_is_available() -> None:
+    with SessionLocal() as db:
+        session, rubric, package = _fixture(db)
+        report = generate_report(db, session.id, "ep-profile", package, rubric.id, "profile-key")
+        assert report.narrative is not None
+        assert report.narrative.overview
+        assert report.narrative_status is ReportNarrativeStatus.READY
