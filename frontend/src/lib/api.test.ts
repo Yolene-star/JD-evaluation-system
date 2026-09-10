@@ -38,4 +38,31 @@ describe('api client', () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ reason: 'user_requested', confirm: true })
     vi.unstubAllGlobals()
   })
+
+  it('maps backend agent status fields into the assessment snapshot', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      session_id: 'session-1',
+      model_version_id: 'model-1',
+      competencies: [],
+      turns: [],
+      agent_status: {
+        phase: 'FOLLOWING_UP',
+        confirmed_competency_ids: ['c-1'],
+        active_competency_id: 'c-2',
+        pending_evidence: ['缺少结果'],
+        reason: '需要追问',
+      },
+    }), { status: 200 })))
+
+    const snapshot = await assessmentApi.snapshot<any>('session-1')
+
+    expect(snapshot.agentStatus).toEqual({
+      phase: 'FOLLOWING_UP',
+      confirmedCompetencyIds: ['c-1'],
+      activeCompetencyId: 'c-2',
+      pendingEvidence: ['缺少结果'],
+      reason: '需要追问',
+    })
+    vi.unstubAllGlobals()
+  })
 })

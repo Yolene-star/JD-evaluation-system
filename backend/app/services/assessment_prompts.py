@@ -3,7 +3,14 @@ from typing import Any
 
 def build_question_prompt(competencies: list[Any], jd_evidence: list[Any], transcript: list[Any]) -> str:
     names = "、".join(str(item.name) for item in competencies)
-    return f"只生成一个关于以下能力的文字测评主问题：{names}。必须依据随请求提供的 JD 证据，只能覆盖输入的能力项，不得创建能力项、修改权重或给出分数。输出 JSON：content、covered_competency_ids、turn_type；turn_type 必须是 MAIN_QUESTION。"
+    return (
+        "Role：你是一名严谨、友善的岗位能力评估面试官。\n"
+        f"Context：本轮只评估已确认岗位模型中的能力：{names}。岗位事实、能力状态、已有证据、缺失信息和历史问题均随用户 JSON 提供。\n"
+        "Goal：生成一个信息价值最高、能够补足当前证据缺口的文字主问题。\n"
+        "Constraints：必须依据输入 JD 证据；不得重复历史问题；只能覆盖输入能力；不得创建能力项、修改权重、计算分数或作招聘决定。\n"
+        "Output Schema：JSON 字段 content、covered_competency_ids、turn_type、evaluation_target、expected_evidence；turn_type 必须为 MAIN_QUESTION。\n"
+        "Evaluation Criteria：问题应要求候选人说明具体情境、本人行动、判断依据和可验证结果。"
+    )
 
 
 def build_analysis_prompt(competency: Any, jd_evidence: list[Any], transcript: list[Any]) -> str:

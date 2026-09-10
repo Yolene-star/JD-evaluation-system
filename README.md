@@ -22,6 +22,22 @@
 
 复制 `backend/.env.example` 为 `backend/.env`，按需设置 `DEEPSEEK_API_KEY`、`LLM_BASE_URL` 和 `LLM_MODEL`。未配置 API key 或测试中 mock AI 时，核心流程仍可演示；阶段三基础评分是确定性的，叙述适配器失败会保留基础报告并标记 `PENDING_RETRY`。自动化测试不会访问真实网络。
 
+### 一键启动
+
+在项目根目录运行：
+
+```powershell
+.\start_project.ps1
+```
+
+也可以双击 `start_project.bat`。统一入口会启动或复用以下服务：
+
+- 前端：`http://127.0.0.1:5192/`
+- 后端：`http://127.0.0.1:8001/`
+- JD 浏览器提取服务：`http://localhost:8787/`
+
+在系统的“添加材料 → 浏览器提取”中打开安装页时，链接会自动携带当前任务的 `project_id`。书签提取的 JD 会经 8787 转发到当前任务，后端保存并完成单份 JD 模型解析后，浏览器才提示导入成功。重复运行启动脚本会复用已占用的服务端口。
+
 ### 本地验证
 
 ```powershell

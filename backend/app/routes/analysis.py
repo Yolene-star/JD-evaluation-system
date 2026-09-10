@@ -35,5 +35,5 @@ def get_analysis(project_id: str, db: Session = Depends(get_db)) -> dict:
         competencies = db.scalars(select(Competency).where(Competency.jd_id == jd.id)).all()
         evidence = db.scalars(select(Evidence).where(Evidence.jd_id == jd.id)).all()
         parsed = parse_jd(jd.raw_text)
-        result.append({"id": jd.id, "title": jd.title, "status": jd.status, "participates_in_model": jd.participates_in_model, "raw_text": jd.raw_text, "requirements": list(parsed.qualifications + parsed.constraints), "competencies": [{"id": c.id, "name": c.name, "evidence_ids": c.evidence_ids, "weight": c.weight} for c in competencies], "evidence": [{"id": e.id, "excerpt": e.excerpt, "start_offset": e.start_offset, "end_offset": e.end_offset} for e in evidence]})
+        result.append({"id": jd.id, "title": jd.title, "status": jd.status, "participates_in_model": jd.participates_in_model, "raw_text": jd.raw_text, "requirements": list(parsed.qualifications + parsed.constraints), "competencies": [{"id": c.id, "name": c.name, "description": c.description, "evidence_ids": c.evidence_ids, "weight": c.weight} for c in competencies], "evidence": [{"id": e.id, "excerpt": e.excerpt, "start_offset": e.start_offset, "end_offset": e.end_offset} for e in evidence]})
     return {"project_status": project.status, "jds": result, "warnings": []}

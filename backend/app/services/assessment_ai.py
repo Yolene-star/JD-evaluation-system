@@ -60,6 +60,8 @@ class GeneratedQuestion(BaseModel):
     content: str = Field(min_length=1)
     covered_competency_ids: list[str] = Field(min_length=1, max_length=3)
     turn_type: str = "MAIN_QUESTION"
+    evaluation_target: str | None = None
+    expected_evidence: list[str] = Field(default_factory=list)
 
     @field_validator("turn_type")
     @classmethod
@@ -137,7 +139,15 @@ def _call_structured(system_prompt: str, user_payload: dict[str, Any], response_
         raise RetryableAIError(f"AI 调用失败（{round((time.perf_counter() - started) * 1000)}ms）") from exc
 
 
-def generate_main_question(snapshot: Any, competencies: list[Any], jd_evidence: list[Any], transcript: list[Any], transport: Callable[..., Any] | None = None) -> GeneratedQuestion:
+def generate_main_question(
+    snapshot: Any,
+    competencies: list[Any],
+    jd_evidence: list[Any],
+    transcript: list[Any],
+    transport: Callable[..., Any] | None = None,
+    *,
+    agent_context: dict[str, Any] | None = None,
+) -> GeneratedQuestion:
     from .assessment_prompts import build_question_prompt
     ids = [item.id for item in competencies]
     if not 1 <= len(ids) <= 3:
@@ -148,7 +158,18 @@ def generate_main_question(snapshot: Any, competencies: list[Any], jd_evidence: 
     if not set(ids).issubset(snapshot_ids):
         raise InvalidAIResponse("题目包含确认快照之外的能力项")
     competency_payload = [asdict(item) if is_dataclass(item) else dict(item) for item in competencies]
-    result = _call_structured(build_question_prompt(competencies, jd_evidence, transcript), {"model_version_id": snapshot.model_version_id, "competencies": competency_payload, "jd_evidence": jd_evidence, "transcript": transcript}, GeneratedQuestion, transport)
+    result = _call_structured(
+        build_question_prompt(competencies, jd_evidence, transcript),
+        {
+            "model_version_id": snapshot.model_version_id,
+            "competencies": competency_payload,
+            "jd_evidence": jd_evidence,
+            "transcript": transcript,
+            "agent_context": agent_context or {},
+        },
+        GeneratedQuestion,
+        transport,
+    )
     if result.covered_competency_ids != ids or result.turn_type != "MAIN_QUESTION":
         raise InvalidAIResponse("AI 修改了题目覆盖能力范围")
     return result

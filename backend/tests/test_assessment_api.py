@@ -40,6 +40,41 @@ def test_create_ready_snapshot_includes_confirmed_competency_names_and_progress(
         assert session["progress"]["total"] == len(session["competencies"])
         assert session["progress"]["total"] > 0
         assert all(item["name"] for item in session["competencies"])
+        assert session["agent_status"] is None
+
+
+def test_answer_response_keeps_legacy_fields_and_adds_agent_status(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: None)
+    with TestClient(app) as client:
+        project = _confirmed_project(client)
+        session = client.post(f"/api/projects/{project['id']}/assessments").json()
+        client.post(f"/api/assessments/{session['id']}/start")
+
+        response = client.post(
+            f"/api/assessments/{session['id']}/turns",
+            json={"content": "我不会", "idempotency_key": "agent-status-1"},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert {
+            "session_id",
+            "model_version_id",
+            "status",
+            "completion",
+            "current_question",
+            "competencies",
+            "turns",
+            "progress",
+            "retryable",
+        }.issubset(body)
+        assert body["agent_status"]["phase"] in {
+            "FOLLOWING_UP",
+            "MOVING_NEXT",
+            "COMPLETED",
+            "RETRY_REQUIRED",
+        }
+        assert body["agent_status"]["active_competency_id"] == body["current_competency_id"]
 
 
 def test_pause_resume_rejects_answer_while_paused(monkeypatch) -> None:

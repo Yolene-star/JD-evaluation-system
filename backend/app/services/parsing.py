@@ -9,6 +9,7 @@ class ParsedCompetency:
     excerpt: str
     start_offset: int
     end_offset: int
+    description: str = ""
 
 
 @dataclass(frozen=True)

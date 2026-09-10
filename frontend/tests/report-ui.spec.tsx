@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ReportView } from '../src/components/ReportView'
+import { ReportChat } from '../src/components/ReportChat'
+import { ReportWorkbench } from '../src/components/ReportWorkbench'
 import type { AssessmentReport } from '../src/types/report'
 
 const report: AssessmentReport = { id: 'r1', assessmentSessionId: 's1', reportVersion: 1, evidencePackageId: 'ep1', modelVersionId: 'm1', rubricSetId: 'rb1', scoringRuleVersion: 'stage3-v1', completion: 'PARTIAL', evaluatedWeight: .5, unevaluatedWeight: .5, matchScore: 72, matchScoreType: 'PARTIAL', status: 'READY', narrativeStatus: 'PENDING_RETRY', evaluations: [{ competencyId: 'c1', name: '系统设计', status: 'SCORED', score: 7, attainment: .7, level: '7-8', rationale: '有证据' }, { competencyId: 'c2', name: '沟通', status: 'INCOMPLETE', score: null, attainment: null, rationale: '暂不可完全评价' }] }
@@ -22,5 +24,13 @@ describe('stage three report UI contracts', () => {
     expect(html).toContain('偏实践型画像')
     expect(html).toContain('role="img"')
     expect(html).toContain('能力模型数据表')
+  })
+
+  it('provides a stage-three workbench and evidence-bound agent consultation', () => {
+    const html = renderToStaticMarkup(<><ReportWorkbench report={report} /><ReportChat reportId="r1" messages={[]} onSend={() => undefined} /></>)
+    expect(html).toContain('阶段三报告工作台')
+    expect(html).toContain('报告版本')
+    expect(html).toContain('咨询 Agent')
+    expect(html).toContain('为什么得到这个分数')
   })
 })

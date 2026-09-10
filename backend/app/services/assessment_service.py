@@ -5,11 +5,14 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import AssessmentEvent, AssessmentSession, AssessmentSessionStatus, AssessmentTurn, AssessmentTurnRole, AssessmentTurnType, CompetencyAssessment, CompetencyAssessmentStatus, EvidenceObservation
-from .assessment_ai import AnalysisResult, GeneratedQuestion, InvalidAIResponse, RetryableAIError, analyze_answer, generate_main_question
+from ..agent.interview_agent import AgentProcessingError, InterviewAgent
+from ..agent.schemas import AgentStatus
+from ..agent.tools import EvidenceTool
+from ..models import AssessmentEvent, AssessmentSession, AssessmentSessionStatus, AssessmentTurn, AssessmentTurnRole, AssessmentTurnType, CompetencyAssessment, CompetencyAssessmentStatus
+from .assessment_ai import GeneratedQuestion, InvalidAIResponse, RetryableAIError, analyze_answer, generate_main_question
 from .assessment_contracts import ConfirmedModelSnapshot, get_confirmed_model_snapshot
 from .assessment_events import record_event
-from .assessment_state import InvalidAssessmentTransition, apply_analysis, finish_session, pause_session, resume_session, start_session
+from .assessment_state import InvalidAssessmentTransition, finish_session, pause_session, resume_session, start_session
 
 
 class AssessmentServiceError(ValueError):
@@ -75,7 +78,28 @@ def create_session(db: Session, project_id: str, model_version_id: str | None = 
     return session
 
 
-def serialize_session(db: Session, session: AssessmentSession, current_question: dict | None = None, retryable: bool = False, error: str | None = None) -> dict:
+def _latest_agent_status(db: Session, session_id: str) -> dict | None:
+    event = db.scalars(
+        select(AssessmentEvent)
+        .where(
+            AssessmentEvent.session_id == session_id,
+            AssessmentEvent.action == "AGENT_DECISION_RECORDED",
+        )
+        .order_by(AssessmentEvent.created_at.desc(), AssessmentEvent.id.desc())
+    ).first()
+    if event is None:
+        return None
+    return json.loads(event.payload).get("agent_status")
+
+
+def serialize_session(
+    db: Session,
+    session: AssessmentSession,
+    current_question: dict | None = None,
+    retryable: bool = False,
+    error: str | None = None,
+    agent_status: AgentStatus | dict | None = None,
+) -> dict:
     items = _items(db, session)
     snapshot = _snapshot(session, db)
     item_by_id = {item.competency_id: item for item in items}
@@ -84,7 +108,9 @@ def serialize_session(db: Session, session: AssessmentSession, current_question:
         current_question = _question_payload(_latest_question(db, session))
     competencies = [{"competency_id": competency.id, "name": competency.name, "status": item_by_id[competency.id].status if competency.id in item_by_id else CompetencyAssessmentStatus.PENDING, "follow_up_count": item_by_id[competency.id].follow_up_count if competency.id in item_by_id else 0, "evidence_sufficiency": item_by_id[competency.id].evidence_sufficiency if competency.id in item_by_id else "UNCERTAIN"} for competency in snapshot.competencies]
     completed = sum(item["status"] in {CompetencyAssessmentStatus.SUFFICIENT, CompetencyAssessmentStatus.EXHAUSTED} for item in competencies)
-    return {"id": session.id, "session_id": session.id, "project_id": session.project_id, "model_version_id": session.model_version_id, "status": session.status, "completion": session.completion, "current_competency_id": session.current_competency_id, "current_question": current_question, "competencies": competencies, "turns": [{"id": turn.id, "role": turn.role, "turn_type": turn.turn_type, "content": turn.content, "covered_competency_ids": turn.covered_competency_ids, "turn_index": turn.turn_index} for turn in turns], "progress": {"completed": completed, "total": len(competencies)}, "retryable": retryable, "error": error}
+    if agent_status is None:
+        agent_status = _latest_agent_status(db, session.id)
+    return {"id": session.id, "session_id": session.id, "project_id": session.project_id, "model_version_id": session.model_version_id, "status": session.status, "completion": session.completion, "current_competency_id": session.current_competency_id, "current_question": current_question, "competencies": competencies, "turns": [{"id": turn.id, "role": turn.role, "turn_type": turn.turn_type, "content": turn.content, "covered_competency_ids": turn.covered_competency_ids, "turn_index": turn.turn_index} for turn in turns], "progress": {"completed": completed, "total": len(competencies)}, "retryable": retryable, "error": error, "agent_status": agent_status.model_dump(mode="json") if isinstance(agent_status, AgentStatus) else agent_status}
 
 
 def start_assessment(db: Session, session: AssessmentSession) -> dict:
@@ -120,56 +146,19 @@ def _find_retry(db: Session, session: AssessmentSession) -> tuple[AssessmentTurn
     return None
 
 
-def _analyze_targets(db: Session, session: AssessmentSession, answer: AssessmentTurn) -> tuple[list[tuple[CompetencyAssessment, AnalysisResult]], str | None]:
-    snapshot = _snapshot(session, db)
-    items_by_id = {item.competency_id: item for item in _items(db, session)}
-    covered = list(answer.covered_competency_ids or [])
-    if not 1 <= len(covered) <= 3 or len(set(covered)) != len(covered):
-        raise AssessmentServiceError("INVALID_QUESTION_SCOPE")
-    if any(item_id not in items_by_id for item_id in covered):
-        raise AssessmentServiceError("COMPETENCY_SESSION_MISMATCH")
-    results: list[tuple[CompetencyAssessment, AnalysisResult]] = []
-    for competency_id in covered:
-        competency = next((item for item in snapshot.competencies if item.id == competency_id), None)
-        if competency is None:
-            raise AssessmentServiceError("COMPETENCY_NOT_IN_SNAPSHOT")
-        try:
-            results.append((items_by_id[competency_id], analyze_answer(snapshot, competency, [], [], answer.content)))
-        except RetryableAIError as exc:
-            return results, str(exc)
-        except InvalidAIResponse as exc:
-            raise AssessmentServiceError("AI_INVALID_RESPONSE", str(exc)) from exc
-    return results, None
-
-
 def _process_answer(db: Session, session: AssessmentSession, answer: AssessmentTurn, *, retry: bool = False) -> dict:
-    results, retry_error = _analyze_targets(db, session, answer)
-    if retry_error:
-        record_event(db, session.id, "AI_RETRY_REQUESTED", {"turn_id": answer.id, "error": retry_error})
+    try:
+        result = InterviewAgent(
+            db,
+            evidence_tool=EvidenceTool(analyze_fn=analyze_answer),
+        ).process_turn(session, answer, retry=retry)
+    except AgentProcessingError as exc:
+        raise AssessmentServiceError(exc.code, str(exc)) from exc
+    if result.retryable:
         db.commit()
-        return serialize_session(db, session, retryable=True, error=retry_error)
-    record_event(db, session.id, "ANSWER_ANALYZED", {"turn_id": answer.id, "retry": retry})
-    transitions = []
-    for target, analysis in results:
-        for observation in analysis.evidence:
-            if observation.competency_id != target.competency_id:
-                raise AssessmentServiceError("COMPETENCY_SESSION_MISMATCH")
-            db.add(EvidenceObservation(session_id=session.id, competency_assessment_id=target.id, competency_id=target.competency_id, turn_id=answer.id, evidence_type=observation.type, excerpt=observation.excerpt, source_excerpt=observation.excerpt, summary=observation.summary, confidence=observation.confidence))
-        record_event(db, session.id, "EVIDENCE_RECORDED", {"turn_id": answer.id, "competency_id": target.competency_id})
-        transition = apply_analysis(session, target, analysis)
-        transitions.append((target, transition))
-        if target.status in {CompetencyAssessmentStatus.SUFFICIENT, CompetencyAssessmentStatus.EXHAUSTED}:
-            record_event(db, session.id, "COMPETENCY_SUFFICIENT" if target.status is CompetencyAssessmentStatus.SUFFICIENT else "COMPETENCY_EXHAUSTED", {"competency_id": target.competency_id})
-    next_question = None
-    follow_up_target = next((target.competency_id for target, transition in transitions if transition.next_action == "ASK_FOLLOW_UP"), None)
-    if follow_up_target:
-        next_question = _make_question(session, db, [follow_up_target], follow_up_target)
-    elif session.status is AssessmentSessionStatus.IN_PROGRESS and session.current_competency_id:
-        next_question = _make_question(session, db, [session.current_competency_id])
-    if session.status is AssessmentSessionStatus.COMPLETED:
-        record_event(db, session.id, "ASSESSMENT_COMPLETED", {"completion": session.completion.value})
+        return serialize_session(db, session, retryable=True, error=result.error, agent_status=result.agent_status)
     db.commit()
-    return serialize_session(db, session, next_question)
+    return serialize_session(db, session, result.current_question, agent_status=result.agent_status)
 
 
 def submit_turn(db: Session, session: AssessmentSession, content: str, idempotency_key: str) -> dict:

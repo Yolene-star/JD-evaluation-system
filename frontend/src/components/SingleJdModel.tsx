@@ -1,9 +1,52 @@
 import { useState } from 'react'
+import { getSingleJdEmptyState } from '../lib/singleJdState'
 
 type SingleCompetency = { id?: string; name: string; evidence_ids?: string[]; weight?: number }
-type Props = { competencies: SingleCompetency[]; onSelect?: (name: string) => void; onEdit?: (item: SingleCompetency, nextName: string, weight?: number) => void; onDelete?: (item: SingleCompetency) => void; onCreate?: (name: string) => void }
+type Props = {
+  status?: string
+  competencies: SingleCompetency[]
+  onSelect?: (name: string) => void
+  onEdit?: (item: SingleCompetency, nextName: string, weight?: number) => void
+  onDelete?: (item: SingleCompetency) => void
+  onCreate?: (name: string) => void
+}
 
-export function SingleJdModel({ competencies, onSelect, onEdit, onDelete, onCreate }: Props) {
-  const [editing, setEditing] = useState<string>(); const [draft, setDraft] = useState(''); const [draftWeight, setDraftWeight] = useState(''); const [creating, setCreating] = useState(false); const [newName, setNewName] = useState(''); const equalWeight = competencies.length ? 1 / competencies.length : 0
-  return <section className="model-section"><div className="section-heading"><div><span className="eyebrow">单份解析结果</span><h3>{competencies.length} 项要求</h3></div>{creating ? <><input className="inline-input" aria-label="新增能力名称" value={newName} onChange={event => setNewName(event.target.value)} /><button onClick={() => { if (newName.trim()) onCreate?.(newName.trim()); setCreating(false); setNewName('') }}>保存</button><button onClick={() => setCreating(false)}>取消</button></> : <button onClick={() => setCreating(true)}>新增能力项</button>}</div>{competencies.length ? <div className="competency-list">{competencies.map((item, index) => { const weight = item.weight ?? equalWeight; return <div className="competency-row" key={item.id ?? item.name}>{editing === item.name ? <><input className="inline-input" aria-label="编辑能力名称" value={draft} onChange={event => setDraft(event.target.value)} /><input className="inline-input" aria-label="设置权重百分比" type="number" min="0" max="100" value={draftWeight} onChange={event => setDraftWeight(event.target.value)} /><button className="row-action" onClick={() => { if (draft.trim()) onEdit?.(item, draft.trim(), Number(draftWeight) / 100); setEditing(undefined) }}>保存</button><button className="row-action" onClick={() => setEditing(undefined)}>取消</button></> : <><button className="competency-main" onClick={() => onSelect?.(item.name)} aria-label={`查看${item.name}证据`}><span className="competency-index">{String(index + 1).padStart(2, '0')}</span><span className="competency-copy"><strong>{item.name}</strong><small>{item.evidence_ids?.length ?? 0} 条证据 · 查看原文依据</small><span className="weight-track"><i style={{ width: `${Math.max(8, weight * 100)}%` }} /></span></span><b>{Math.round(weight * 100)}%</b></button><button className="row-action" onClick={() => { setEditing(item.name); setDraft(item.name); setDraftWeight(String(Math.round(weight * 100))) }}>编辑</button><button className="row-action danger" onClick={() => onDelete?.(item)}>删除</button></>}</div> })}</div> : <div className="workbench-empty"><strong>尚未生成解析结果</strong><span>选择一份已完成解析的 JD 查看独立模型。</span></div>}</section>
+export function SingleJdModel({ status, competencies, onSelect, onEdit, onDelete, onCreate }: Props) {
+  const [editing, setEditing] = useState<string>()
+  const [draft, setDraft] = useState('')
+  const [draftWeight, setDraftWeight] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const equalWeight = competencies.length ? 1 / competencies.length : 0
+  const emptyState = getSingleJdEmptyState(status)
+
+  return <section className="model-section">
+    <div className="section-heading">
+      <div><span className="eyebrow">单份解析结果</span><h3>{competencies.length} 项要求</h3></div>
+      {creating ? <>
+        <input className="inline-input" aria-label="新增能力名称" value={newName} onChange={event => setNewName(event.target.value)} />
+        <button onClick={() => { if (newName.trim()) onCreate?.(newName.trim()); setCreating(false); setNewName('') }}>保存</button>
+        <button onClick={() => setCreating(false)}>取消</button>
+      </> : <button onClick={() => setCreating(true)}>新增能力项</button>}
+    </div>
+    {competencies.length ? <div className="competency-list">{competencies.map((item, index) => {
+      const weight = item.weight ?? equalWeight
+      return <div className="competency-row" key={item.id ?? item.name}>
+        {editing === item.name ? <>
+          <input className="inline-input" aria-label="编辑能力名称" value={draft} onChange={event => setDraft(event.target.value)} />
+          <input className="inline-input" aria-label="设置权重百分比" type="number" min="0" max="100" value={draftWeight} onChange={event => setDraftWeight(event.target.value)} />
+          <button className="row-action" onClick={() => { if (draft.trim()) onEdit?.(item, draft.trim(), Number(draftWeight) / 100); setEditing(undefined) }}>保存</button>
+          <button className="row-action" onClick={() => setEditing(undefined)}>取消</button>
+        </> : <>
+          <button className="competency-main" onClick={() => onSelect?.(item.name)} aria-label={`查看${item.name}证据`}>
+            <span className="competency-index">{String(index + 1).padStart(2, '0')}</span>
+            <span className="competency-copy"><strong>{item.name}</strong><small>{item.evidence_ids?.length ?? 0} 条证据 · 查看原文依据</small><span className="weight-track"><i style={{ width: `${Math.max(8, weight * 100)}%` }} /></span></span>
+            <b>{Math.round(weight * 100)}%</b>
+          </button>
+          <button className="row-action" onClick={() => { setEditing(item.name); setDraft(item.name); setDraftWeight(String(Math.round(weight * 100))) }}>编辑</button>
+          <button className="row-action danger" onClick={() => onDelete?.(item)}>删除</button>
+        </>}
+      </div>
+    })}</div> : <div className="workbench-empty"><strong>{emptyState.title}</strong><span>{emptyState.detail}</span></div>}
+  </section>
 }

@@ -79,11 +79,29 @@ def test_main_question_transport_receives_grounded_context(monkeypatch) -> None:
     def transport(payload, **_kwargs):
         captured.update(payload)
         return {"choices": [{"message": {"content": '{"content":"请举例","covered_competency_ids":["c1"],"turn_type":"MAIN_QUESTION"}'}}]}
-    result = generate_main_question(snapshot, list(snapshot.competencies), [{"id": "jd-e1", "excerpt": "负责系统设计"}], [{"role": "USER", "content": "历史回答"}], transport)
+    result = generate_main_question(
+        snapshot,
+        list(snapshot.competencies),
+        [{"id": "jd-e1", "excerpt": "负责系统设计"}],
+        [{"role": "USER", "content": "历史回答"}],
+        transport,
+        agent_context={
+            "current_competency_state": {"status": "FOLLOW_UP"},
+            "existing_evidence": [{"summary": "已有设计证据"}],
+            "missing_information": ["缺少容量结果"],
+            "historical_questions": ["之前的问题"],
+        },
+    )
     assert result.turn_type == "MAIN_QUESTION"
     user_context = captured["messages"][1]["content"]
     assert "系统设计" in user_context
     assert "负责系统设计" in user_context
+    assert "current_competency_state" in user_context
+    assert "已有设计证据" in user_context
+    assert "缺少容量结果" in user_context
+    assert "之前的问题" in user_context
+    assert result.evaluation_target is None
+    assert result.expected_evidence == []
 
 
 def test_main_question_rejects_competency_outside_snapshot(monkeypatch) -> None:

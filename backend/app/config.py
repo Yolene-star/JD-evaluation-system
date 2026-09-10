@@ -30,6 +30,12 @@ def get_llm_api_key(explicit: str | None = None) -> str | None:
     return os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
 
 
+def is_llm_analysis_enabled() -> bool:
+    """Read the analysis toggle at request time for long-running local servers."""
+    load_local_env(LOCAL_ENV_PATH)
+    return os.getenv("LLM_ANALYSIS_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./app.db")

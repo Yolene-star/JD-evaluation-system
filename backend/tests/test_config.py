@@ -1,6 +1,10 @@
 import os
 
-from backend.app.config import get_llm_api_key, load_local_env
+from backend.app.config import get_llm_api_key, load_local_env, settings
+
+
+def test_pytest_uses_an_isolated_database() -> None:
+    assert ".pytest-run" in settings.database_url
 
 
 def test_load_local_env_reads_key_value_pairs_without_overwriting_environment(tmp_path, monkeypatch) -> None:

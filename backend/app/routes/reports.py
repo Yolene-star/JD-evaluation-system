@@ -3,10 +3,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import AssessmentReport, AssessmentSession, ReportNarrative, RubricSet
+from ..models import AssessmentReport, AssessmentSession, ReportChatMessage, ReportNarrative, RubricSet
 from ..services.evidence_package import build_evidence_package
 from ..services.report_service import ReportGenerationError, generate_report
 from ..services.rubrics import activate_rubric_set, create_default_rubric_set, get_active_rubric_set
+from ..services.report_chat import answer_report_question
 
 router = APIRouter(tags=["reports"])
 
@@ -101,3 +102,32 @@ def scoring_policy(report_id: str, db: Session = Depends(get_db)) -> dict:
     if report is None:
         raise HTTPException(status_code=404, detail="报告不存在")
     return {"scoring_rule_version": report.scoring_rule_version, "attainment_formula": "score / 10", "partial_weight_policy": "evaluated weights are re-normalized", "incomplete_policy": "INCOMPLETE is not scored and is not treated as zero"}
+
+
+def _chat_payload(item: ReportChatMessage) -> dict:
+    return {"id": item.id, "report_id": item.report_id, "role": item.role, "content": item.content, "cited_evidence_ids": item.cited_evidence_ids, "created_at": item.created_at.isoformat() if item.created_at else None}
+
+
+@router.get("/api/reports/{report_id}/chat/messages")
+def report_chat_history(report_id: str, db: Session = Depends(get_db)) -> list[dict]:
+    if db.get(AssessmentReport, report_id) is None:
+        raise HTTPException(status_code=404, detail="报告不存在")
+    rows = db.scalars(select(ReportChatMessage).where(ReportChatMessage.report_id == report_id).order_by(ReportChatMessage.created_at, ReportChatMessage.id)).all()
+    return [_chat_payload(item) for item in rows]
+
+
+@router.post("/api/reports/{report_id}/chat/messages")
+def ask_report_agent(report_id: str, payload: dict, db: Session = Depends(get_db)) -> dict:
+    report = db.get(AssessmentReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="报告不存在")
+    question = str(payload.get("content", "")).strip()
+    if not question:
+        raise HTTPException(status_code=422, detail="问题不能为空")
+    user_message = ReportChatMessage(report_id=report.id, role="user", content=question, cited_evidence_ids=[])
+    db.add(user_message)
+    answer, evidence_ids = answer_report_question(report, question)
+    agent_message = ReportChatMessage(report_id=report.id, role="agent", content=answer, cited_evidence_ids=evidence_ids)
+    db.add(agent_message)
+    db.commit()
+    return {"reply": answer, "message": _chat_payload(agent_message)}

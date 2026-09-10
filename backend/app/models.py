@@ -371,6 +371,17 @@ class ReportNarrative(Base):
     report: Mapped[AssessmentReport] = relationship(back_populates="narrative")
 
 
+class ReportChatMessage(Base):
+    __tablename__ = "report_chat_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    report_id: Mapped[str] = mapped_column(ForeignKey("assessment_reports.id"), index=True)
+    role: Mapped[str] = mapped_column(String(20))
+    content: Mapped[str] = mapped_column(Text)
+    cited_evidence_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 @event.listens_for(RubricSet, "before_update")
 def prevent_active_rubric_mutation(mapper: object, connection: object, target: RubricSet) -> None:
     state = sa_inspect(target)

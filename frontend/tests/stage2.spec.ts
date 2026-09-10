@@ -40,7 +40,9 @@ test('stage two preserves an answer on AI failure and allows retry', async ({ pa
 
   await page.goto('/')
   await page.getByRole('button', { name: '已确认岗位 CONFIRMED' }).click()
-  await page.getByRole('button', { name: '进入阶段二' }).click()
+  await page.getByRole('button', { name: '工作台', exact: true }).click()
+  await page.getByRole('navigation', { name: '评估阶段' }).getByRole('button', { name: '模拟面试' }).click()
+  await page.getByRole('complementary').filter({ hasText: 'Workbench' }).getByRole('button', { name: '关闭工作台' }).click()
   await expect(page.getByRole('button', { name: '开始测评' })).toBeVisible()
   await expect(page.getByRole('button', { name: '工作台', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: '测评工作台' })).toHaveCount(1)

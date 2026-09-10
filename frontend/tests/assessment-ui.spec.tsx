@@ -43,6 +43,43 @@ describe('stage two assessment UI contracts', () => {
     expect(html).not.toMatch(/score|radar|匹配度|雷达图|正式评分/i)
   })
 
+  it('renders server-provided agent status with text labels', () => {
+    const snapshot: AssessmentSnapshot = {
+      sessionId: 's1',
+      status: 'IN_PROGRESS',
+      completion: 'NONE',
+      modelVersionId: 'v1',
+      competencies: [
+        { competencyId: 'c1', name: '系统设计', status: 'SUFFICIENT', followUpCount: 0, evidenceSufficiency: 'SUFFICIENT' },
+        { competencyId: 'c2', name: '问题分析', status: 'FOLLOW_UP', followUpCount: 1, evidenceSufficiency: 'INSUFFICIENT' },
+      ],
+      turns: [],
+      retryable: false,
+      agentStatus: {
+        phase: 'FOLLOWING_UP',
+        confirmedCompetencyIds: ['c1'],
+        activeCompetencyId: 'c2',
+        pendingEvidence: ['缺少工程结果'],
+        reason: '当前能力仍缺少结果证据',
+      },
+    }
+
+    const html = renderToStaticMarkup(<AssessmentWorkbench snapshot={snapshot} />)
+
+    expect(html).toContain('AI 正在评估')
+    expect(html).toContain('系统设计已确认')
+    expect(html).toContain('正在验证问题分析')
+    expect(html).toContain('等待补充：缺少工程结果')
+    expect(html).toContain('当前能力仍缺少结果证据')
+    expect(html).not.toMatch(/score|radar|匹配度|雷达图|正式评分/i)
+  })
+
+  it('keeps old snapshots usable without an agent status panel', () => {
+    const snapshot: AssessmentSnapshot = { sessionId: 's1', status: 'IN_PROGRESS', completion: 'NONE', modelVersionId: 'v1', competencies: [], turns: [], retryable: false }
+    const html = renderToStaticMarkup(<AssessmentWorkbench snapshot={snapshot} />)
+    expect(html).not.toContain('AI 正在评估')
+  })
+
   it('offers supportive answer helpers without submitting a response', () => {
     const html = renderToStaticMarkup(<AnswerComposer onSubmit={() => undefined} />)
     expect(html).toContain('提示一下')
