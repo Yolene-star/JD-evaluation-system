@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import PurePath
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..models import Project, ResumeContextStatus, ResumeContextVersion
@@ -11,6 +11,7 @@ from .audit import record_event
 from .resume_parser import ResumeParseError, parse_resume
 
 RESUME_PARSER_VERSION = "resume-v1"
+MAX_VERSION_ALLOCATION_ATTEMPTS = 3
 
 
 def get_current_resume_context(db: Session, project_id: str) -> ResumeContextVersion | None:
@@ -33,65 +34,41 @@ def create_resume_version(
     content: bytes,
 ) -> ResumeContextVersion:
     """Persist a new parse attempt without disturbing the current version on failure."""
-    version = (db.scalar(select(func.max(ResumeContextVersion.version)).where(ResumeContextVersion.project_id == project.id)) or 0) + 1
-    source_filename = PurePath(filename).name[:255] or "未命名简历"
+    source_filename = _display_filename(filename)
     content_sha256 = hashlib.sha256(content).hexdigest()
     try:
         parsed = parse_resume(source_filename, media_type, content)
     except ResumeParseError as error:
-        return _record_failed_version(
-            db,
-            project,
-            version=version,
-            source_filename=source_filename,
-            media_type=media_type,
-            file_size=len(content),
-            content_sha256=content_sha256,
-            error_code=error.code,
+        return _persist_resume_attempt(
+            db, project,
+            lambda version: _failed_resume_context(
+                project, version, source_filename, media_type, len(content), content_sha256, error.code
+            ),
         )
     except Exception:
-        return _record_failed_version(
-            db,
-            project,
+        return _persist_resume_attempt(
+            db, project,
+            lambda version: _failed_resume_context(
+                project, version, source_filename, media_type, len(content), content_sha256, "RESUME_PARSE_FAILED"
+            ),
+        )
+
+    return _persist_resume_attempt(
+        db, project,
+        lambda version: ResumeContextVersion(
+            project_id=project.id,
             version=version,
+            is_current=False,
             source_filename=source_filename,
             media_type=media_type,
             file_size=len(content),
-            content_sha256=content_sha256,
-            error_code="RESUME_PARSE_FAILED",
-        )
-
-    resume_context = ResumeContextVersion(
-        project_id=project.id,
-        version=version,
-        is_current=False,
-        source_filename=source_filename,
-        media_type=media_type,
-        file_size=len(content),
-        content_sha256=parsed.content_sha256,
-        normalized_text=parsed.normalized_text,
-        structured_context_json=parsed.context.model_dump(mode="json"),
-        parser_version=RESUME_PARSER_VERSION,
-        status=ResumeContextStatus.READY,
+            content_sha256=parsed.content_sha256,
+            normalized_text=parsed.normalized_text,
+            structured_context_json=parsed.context.model_dump(mode="json"),
+            parser_version=RESUME_PARSER_VERSION,
+            status=ResumeContextStatus.READY,
+        ),
     )
-    db.add(resume_context)
-    db.flush()
-    db.execute(
-        update(ResumeContextVersion)
-        .where(
-            ResumeContextVersion.project_id == project.id,
-            ResumeContextVersion.id != resume_context.id,
-        )
-        .values(is_current=False)
-    )
-    resume_context.is_current = True
-    record_event(
-        db,
-        project.id,
-        "RESUME_CONTEXT_READY",
-        _audit_payload(resume_context),
-    )
-    return resume_context
 
 
 def cancel_current_resume(db: Session, project: Project) -> ResumeContextVersion | None:
@@ -129,10 +106,46 @@ def serialize_resume_context(resume_context: ResumeContextVersion) -> dict:
     }
 
 
-def _record_failed_version(
+def _persist_resume_attempt(
     db: Session,
     project: Project,
-    *,
+    build_resume_context,
+) -> ResumeContextVersion:
+    for attempt in range(MAX_VERSION_ALLOCATION_ATTEMPTS):
+        try:
+            with db.begin_nested():
+                version = (db.scalar(select(func.max(ResumeContextVersion.version)).where(ResumeContextVersion.project_id == project.id)) or 0) + 1
+                resume_context = build_resume_context(version)
+                db.add(resume_context)
+                db.flush()
+                if resume_context.status is ResumeContextStatus.READY:
+                    db.execute(
+                        update(ResumeContextVersion)
+                        .where(
+                            ResumeContextVersion.project_id == project.id,
+                            ResumeContextVersion.id != resume_context.id,
+                        )
+                        .values(is_current=False)
+                    )
+                    resume_context.is_current = True
+                    action = "RESUME_CONTEXT_READY"
+                else:
+                    action = "RESUME_CONTEXT_FAILED"
+                record_event(
+                    db,
+                    project.id,
+                    action,
+                    _audit_payload(resume_context, error_code=resume_context.failure_reason),
+                )
+            return resume_context
+        except IntegrityError:
+            if attempt == MAX_VERSION_ALLOCATION_ATTEMPTS - 1:
+                raise
+    raise RuntimeError("resume version allocation retry exhausted")
+
+
+def _failed_resume_context(
+    project: Project,
     version: int,
     source_filename: str,
     media_type: str,
@@ -140,7 +153,7 @@ def _record_failed_version(
     content_sha256: str,
     error_code: str,
 ) -> ResumeContextVersion:
-    resume_context = ResumeContextVersion(
+    return ResumeContextVersion(
         project_id=project.id,
         version=version,
         is_current=False,
@@ -154,15 +167,10 @@ def _record_failed_version(
         status=ResumeContextStatus.FAILED,
         failure_reason=error_code,
     )
-    db.add(resume_context)
-    db.flush()
-    record_event(
-        db,
-        project.id,
-        "RESUME_CONTEXT_FAILED",
-        _audit_payload(resume_context, error_code=error_code),
-    )
-    return resume_context
+
+
+def _display_filename(filename: str) -> str:
+    return filename.replace("\\", "/").rsplit("/", 1)[-1][:255] or "未命名简历"
 
 
 def _audit_payload(resume_context: ResumeContextVersion, *, error_code: str | None = None) -> dict:

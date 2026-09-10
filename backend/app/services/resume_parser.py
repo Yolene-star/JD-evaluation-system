@@ -31,6 +31,14 @@ _IDENTITY_DOCUMENT_PATTERN = re.compile(
     r"(?P<value>[a-z0-9-]{6,20})\b|(?:护照|身份证(?:号)?)\s*[:：]\s*(?P<cn_value>[a-z0-9-]{6,20})"
 )
 _ADDRESS_LINE_PATTERN = re.compile(r"(?:地址|住址|居住地|联系地址|address)\s*[:：]", re.IGNORECASE)
+_DEMOGRAPHIC_LINE_PATTERN = re.compile(
+    r"^\s*(?:gender|sex|age|nationality|citizenship|marital\s*status|ethnicity|race|religion|"
+    r"sexual\s*orientation|gender\s*identity|disability|date\s*of\s*birth|birth\s*date|"
+    r"性别|年龄|国籍|民族|婚姻(?:状况|状态)?|婚否|种族|宗教|信仰|政治面貌|"
+    r"出生(?:日期|年月|年月日)?|生日|户籍|籍贯|残疾(?:情况)?|健康(?:状况)?|性取向|性别认同)"
+    r"(?:\s*[:：]\s*.*|\s+.+)?$",
+    re.IGNORECASE,
+)
 _CONTROL_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _WHITESPACE_PATTERN = re.compile(r"[ \t\r\f\v]+")
 _HEADING_BUCKETS = (
@@ -121,7 +129,7 @@ def _redact_and_normalize(text: str) -> list[str]:
     for raw_line in text.splitlines():
         line = _CONTROL_PATTERN.sub("", raw_line)
         line = _WHITESPACE_PATTERN.sub(" ", line).strip()
-        if not line or _ADDRESS_LINE_PATTERN.search(line):
+        if not line or _ADDRESS_LINE_PATTERN.search(line) or _DEMOGRAPHIC_LINE_PATTERN.match(line):
             continue
         line = _EMAIL_PATTERN.sub("[已脱敏邮箱]", line)
         line = _PHONE_PATTERN.sub("[已脱敏电话]", line)

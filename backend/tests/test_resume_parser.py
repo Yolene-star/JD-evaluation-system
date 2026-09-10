@@ -179,6 +179,31 @@ def test_parser_preserves_dates_and_ranges_that_are_not_phone_numbers():
     assert "2026-09-10" in persisted_text
 
 
+def test_parser_removes_labeled_demographic_fields_before_structuring():
+    """Would fail if prohibited demographic fields reached persisted resume context."""
+    parsed = parse_resume(
+        "resume.txt",
+        "text/plain",
+        (
+            "Gender: Female\nSex: male\nAge: 26\nNationality: Chinese\n"
+            "Marital status: Single\nEthnicity: Han\n性别：女\n年龄：26\n"
+            "国籍：中国\n婚姻状况：未婚\n民族：汉族\nPROJECTS\n"
+            "Project: Search service"
+        ).encode(),
+    )
+
+    persisted_text = "\n".join(
+        [
+            parsed.normalized_text,
+            *(segment.text for segment in parsed.context.source_segments),
+            *(item.summary for item in parsed.context.projects),
+        ]
+    )
+    for prohibited in ("Gender", "Sex", "Age", "Nationality", "Marital status", "Ethnicity", "性别", "年龄", "国籍", "婚姻状况", "民族", "Female", "Single", "汉族"):
+        assert prohibited not in persisted_text
+    assert "Search service" in persisted_text
+
+
 def test_docx_parser_extracts_static_text_from_table_cells():
     """Would fail if a resume whose only useful content is tabular is treated as empty."""
     document = Document()
