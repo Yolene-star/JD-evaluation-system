@@ -23,10 +23,11 @@ SUPPORTED_RESUME_TYPES = {
 
 _EMAIL_PATTERN = re.compile(r"(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}")
 _PHONE_PATTERN = re.compile(
-    r"(?<![\w+])(?:\+\d{1,3}[ .-]?)?(?:\(?\d{1,4}\)?[ .-]?){2,5}\d{2,4}(?!\w)"
+    r"(?<![\w+])(?:\+\d{1,3}[ .-]?(?:\(?\d{1,4}\)?[ .-]?){2,5}\d{2,4}|(?:\+?86[- ]?)?1[3-9]\d{9})(?!\w)"
 )
 _IDENTITY_DOCUMENT_PATTERN = re.compile(
-    r"(?i)\b(?P<label>passport|national\s*id|identity\s*(?:card|document))\s*[:：]\s*"
+    r"(?i)\b(?P<label>passport|national\s*id|identity\s*(?:card|document))"
+    r"(?:\s*(?:no\.?|number))?\s*[:：]?\s*"
     r"(?P<value>[a-z0-9-]{6,20})\b|(?:护照|身份证(?:号)?)\s*[:：]\s*(?P<cn_value>[a-z0-9-]{6,20})"
 )
 _ADDRESS_LINE_PATTERN = re.compile(r"(?:地址|住址|居住地|联系地址|address)\s*[:：]", re.IGNORECASE)
