@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from ..models import (
     CompetencyAssessment,
     CompetencyAssessmentStatus,
     EvidenceObservation,
+    ResumeSnapshot,
 )
 from ..services.assessment_contracts import (
     ConfirmedModelSnapshot,
@@ -18,7 +19,9 @@ from .schemas import (
     CompetencyMemoryItem,
     ConversationMemoryItem,
     EvidenceMemoryItem,
+    FormalPlannerContext,
     PlannerContext,
+    ResumeMemoryContext,
 )
 
 
@@ -107,9 +110,38 @@ class AssessmentMemory:
                         if assessment is not None
                         else "UNCERTAIN"
                     ),
+                    indicator_ids=list(competency.indicators),
+                    expected_evidence=list(competency.evidence_requirements),
                 )
             )
         return result
+
+    def get_resume_context(self, session: AssessmentSession) -> ResumeMemoryContext | None:
+        """Read a frozen snapshot as optional background, never formal evidence."""
+        snapshot = self.db.scalar(
+            select(ResumeSnapshot).where(ResumeSnapshot.session_id == session.id)
+        )
+        if snapshot is None or not isinstance(snapshot.snapshot_json, Mapping):
+            return None
+        background = snapshot.snapshot_json.get("background")
+        if not isinstance(background, Mapping):
+            return None
+        try:
+            return ResumeMemoryContext.model_validate(
+                {
+                    "source_type": snapshot.snapshot_json.get("source_type", "BACKGROUND_ONLY"),
+                    "version_id": snapshot.resume_context_version_id,
+                    "education": background.get("education", []),
+                    "projects": background.get("projects", []),
+                    "skills": background.get("skills", []),
+                    "experiences": background.get("experiences", []),
+                }
+            )
+        except ValueError:
+            return None
+
+    def formal_context(self, session: AssessmentSession) -> FormalPlannerContext:
+        return self.get_context(session).formal_context()
 
     def get_context(self, session: AssessmentSession) -> PlannerContext:
         competencies = self.get_competencies(session)
@@ -130,4 +162,5 @@ class AssessmentMemory:
                 for item in competencies
                 if item.status not in terminal_statuses
             ],
+            resume_context=self.get_resume_context(session),
         )

@@ -6,8 +6,11 @@ from .schemas import (
     CompetencyMemoryItem,
     ConversationMemoryItem,
     EvidenceMemoryItem,
+    FormalPlannerContext,
     PlannerContext,
     PlannerDecision,
+    ResumeMemoryContext,
+    ResumeReference,
 )
 from .memory import AssessmentMemory
 from .planner import AssessmentPlanner, PlannerDecisionError
@@ -21,8 +24,11 @@ __all__ = [
     "CompetencyMemoryItem",
     "ConversationMemoryItem",
     "EvidenceMemoryItem",
+    "FormalPlannerContext",
     "PlannerContext",
     "PlannerDecision",
+    "ResumeMemoryContext",
+    "ResumeReference",
     "AssessmentMemory",
     "AssessmentPlanner",
     "PlannerDecisionError",

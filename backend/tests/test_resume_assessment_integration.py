@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
+from backend.app.agent.memory import AssessmentMemory
 from backend.app.db import SessionLocal
 from backend.app.main import app
 from backend.app.models import AssessmentSession, ResumeSnapshot
@@ -118,3 +119,24 @@ def test_sessions_expose_no_resume_rebind_endpoint_before_or_after_start() -> No
         assert client.post(f"/api/assessments/{session['id']}/start").status_code == 200
         after_start = client.post(f"/api/assessments/{session['id']}/resume-context")
         assert after_start.status_code == 404
+
+
+def test_session_memory_keeps_resume_background_out_of_formal_context() -> None:
+    """Would fail if an opted-in snapshot were made part of formal planner input."""
+    with TestClient(app) as client:
+        project = _confirmed_project(client)
+        _upload_resume(client, project["id"], "resume.txt", "项目：系统设计平台".encode())
+        created = client.post(
+            f"/api/projects/{project['id']}/assessments",
+            json={"use_resume_context": True},
+        ).json()
+
+        with SessionLocal() as db:
+            session = db.get(AssessmentSession, created["id"])
+            assert session is not None
+            context = AssessmentMemory(db).get_context(session)
+
+        assert context.resume_context is not None
+        assert context.resume_context.source_type == "BACKGROUND_ONLY"
+        assert context.resume_context.projects
+        assert "resume_context" not in context.formal_context().model_dump()

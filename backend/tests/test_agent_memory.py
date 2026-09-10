@@ -19,6 +19,9 @@ from backend.app.models import (
     ModelVersion,
     ModelVersionStatus,
     Project,
+    ResumeContextStatus,
+    ResumeContextVersion,
+    ResumeSnapshot,
 )
 
 
@@ -85,6 +88,42 @@ def test_memory_is_session_scoped_and_preserves_snapshot_order() -> None:
             current_competency_id="other",
         )
         db.add_all([first_session, second_session])
+        db.flush()
+        resume_version = ResumeContextVersion(
+            id="resume-v1",
+            project_id=first_project.id,
+            version=1,
+            is_current=True,
+            source_filename="resume.txt",
+            media_type="text/plain",
+            file_size=1,
+            content_sha256="a" * 64,
+            normalized_text="",
+            structured_context_json={
+                "source_type": "BACKGROUND_ONLY",
+                "projects": [
+                    {
+                        "id": "project-1",
+                        "summary": "系统设计平台项目",
+                        "source_segment_ids": ["segment-1"],
+                    }
+                ],
+            },
+            parser_version="resume-v1",
+            status=ResumeContextStatus.READY,
+        )
+        db.add(resume_version)
+        db.flush()
+        db.add(
+            ResumeSnapshot(
+                session_id=first_session.id,
+                resume_context_version_id=resume_version.id,
+                snapshot_json={
+                    "source_type": "BACKGROUND_ONLY",
+                    "background": resume_version.structured_context_json,
+                },
+            )
+        )
         db.flush()
         first_item = CompetencyAssessment(
             id="ca-1",
@@ -180,4 +219,9 @@ def test_memory_is_session_scoped_and_preserves_snapshot_order() -> None:
         assert [item.competency_id for item in context.competencies] == ["c-1", "c-2"]
         assert context.session_id == first_session.id
         assert context.remaining_competency_ids == ["c-2"]
+        assert context.resume_context is not None
+        assert context.resume_context.version_id == "resume-v1"
+        assert [item.id for item in context.resume_context.projects] == ["project-1"]
+        assert "resume_context" not in context.formal_context().model_dump()
+        assert memory.get_resume_context(first_session).version_id == "resume-v1"
         assert not db.dirty

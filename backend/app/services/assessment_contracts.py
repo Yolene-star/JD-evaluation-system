@@ -19,6 +19,8 @@ class ConfirmedCompetency:
     description: str
     weight: float
     jd_evidence_ids: tuple[str, ...]
+    indicators: tuple[str, ...] = ()
+    evidence_requirements: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -58,7 +60,16 @@ def get_confirmed_model_snapshot(
                 raise ModelNotConfirmedError("已确认模型快照格式无效")
             weight = float(item.get("weight", 0.0))
             evidence_ids = item.get("jd_evidence_ids", item.get("evidence_ids", []))
-            if not isfinite(weight) or weight < 0 or weight > 1 or not isinstance(evidence_ids, (list, tuple)):
+            indicators = item.get("indicators", [])
+            evidence_requirements = item.get("evidence_requirements", [])
+            if (
+                not isfinite(weight)
+                or weight < 0
+                or weight > 1
+                or not isinstance(evidence_ids, (list, tuple))
+                or not isinstance(indicators, (list, tuple))
+                or not isinstance(evidence_requirements, (list, tuple))
+            ):
                 raise ModelNotConfirmedError("已确认模型快照格式无效")
             parsed.append(
                 ConfirmedCompetency(
@@ -67,6 +78,8 @@ def get_confirmed_model_snapshot(
                     description=str(item.get("description", "")),
                     weight=weight,
                     jd_evidence_ids=tuple(str(value) for value in evidence_ids),
+                    indicators=tuple(str(value) for value in indicators),
+                    evidence_requirements=tuple(str(value) for value in evidence_requirements),
                 )
             )
         competencies = tuple(parsed)
