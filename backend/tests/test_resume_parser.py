@@ -142,6 +142,25 @@ def test_parser_redacts_passport_number_with_no_label_separator():
     assert "identity-safe parser" in persisted_text
 
 
+@pytest.mark.parametrize("identity_line", ["Passport No. - X1234567", "Passport # X1234567"])
+def test_parser_redacts_passport_number_with_common_label_separators(identity_line: str):
+    """Would fail if common label separators allow a passport value to persist."""
+    parsed = parse_resume(
+        "resume.txt",
+        "text/plain",
+        f"{identity_line}\nProject: identity-safe parser".encode(),
+    )
+    persisted_text = "\n".join(
+        [
+            parsed.normalized_text,
+            *(segment.text for segment in parsed.context.source_segments),
+            *(item.summary for item in parsed.context.projects),
+        ]
+    )
+    assert "X1234567" not in persisted_text
+    assert "identity-safe parser" in persisted_text
+
+
 def test_parser_preserves_dates_and_ranges_that_are_not_phone_numbers():
     """Would fail if ordinary year dates are redacted as international phone numbers."""
     parsed = parse_resume(

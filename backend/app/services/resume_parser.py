@@ -27,7 +27,7 @@ _PHONE_PATTERN = re.compile(
 )
 _IDENTITY_DOCUMENT_PATTERN = re.compile(
     r"(?i)\b(?P<label>passport|national\s*id|identity\s*(?:card|document))"
-    r"(?:\s*(?:no\.?|number))?\s*[:：]?\s*"
+    r"(?:\s*(?:no\.?|number))?\s*(?:[:：#]|[-–—])?\s*"
     r"(?P<value>[a-z0-9-]{6,20})\b|(?:护照|身份证(?:号)?)\s*[:：]\s*(?P<cn_value>[a-z0-9-]{6,20})"
 )
 _ADDRESS_LINE_PATTERN = re.compile(r"(?:地址|住址|居住地|联系地址|address)\s*[:：]", re.IGNORECASE)
