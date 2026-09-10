@@ -251,6 +251,42 @@ class EvidenceObservation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class ResumeContextStatus(StrEnum):
+    PROCESSING = "PROCESSING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
+class ResumeContextVersion(Base):
+    __tablename__ = "resume_context_versions"
+    __table_args__ = (UniqueConstraint("project_id", "version", name="uq_resume_project_version"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    version: Mapped[int] = mapped_column()
+    is_current: Mapped[bool] = mapped_column(default=False, index=True)
+    source_filename: Mapped[str] = mapped_column(String(255))
+    media_type: Mapped[str] = mapped_column(String(120))
+    file_size: Mapped[int] = mapped_column()
+    content_sha256: Mapped[str] = mapped_column(String(64), index=True)
+    normalized_text: Mapped[str] = mapped_column(Text, default="")
+    structured_context_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    parser_version: Mapped[str] = mapped_column(String(40), default="resume-v1")
+    status: Mapped[ResumeContextStatus] = mapped_column(Enum(ResumeContextStatus))
+    failure_reason: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ResumeSnapshot(Base):
+    __tablename__ = "resume_snapshots"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    session_id: Mapped[str] = mapped_column(ForeignKey("assessment_sessions.id"), unique=True, index=True)
+    resume_context_version_id: Mapped[str] = mapped_column(ForeignKey("resume_context_versions.id"), index=True)
+    snapshot_json: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class AssessmentEvent(Base):
     __tablename__ = "assessment_events"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
@@ -401,3 +437,13 @@ def prevent_active_rubric_child_mutation(mapper: object, connection: object, tar
     ).scalar_one_or_none()
     if row in {RubricSetStatus.ACTIVE, RubricSetStatus.ACTIVE.value}:
         raise ValueError("competencies in an active rubric set are immutable; create a new version")
+
+
+@event.listens_for(ResumeSnapshot, "before_update")
+def prevent_resume_snapshot_update(mapper: object, connection: object, target: ResumeSnapshot) -> None:
+    raise ValueError("resume snapshots are immutable")
+
+
+@event.listens_for(ResumeSnapshot, "before_delete")
+def prevent_resume_snapshot_delete(mapper: object, connection: object, target: ResumeSnapshot) -> None:
+    raise ValueError("resume snapshots are immutable")
