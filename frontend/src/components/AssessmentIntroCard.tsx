@@ -1,0 +1,1 @@
+export function AssessmentIntroCard({ totalCount, onStart }: { totalCount: number; onStart: () => void }) { return <section className="assessment-intro"><h3>开始自适应测评</h3><p>本次将围绕已确认模型的 {totalCount} 项能力提问，每项最多追问两次。回答仅用于生成可追溯的测评证据。</p><button className="primary-button" onClick={onStart}>开始测评</button></section> }

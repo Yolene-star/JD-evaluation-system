@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3.11+, FastAPI, Pydantic, SQLAlchemy, SQLite 开发数据库/PostgreSQL 兼容模型, React, TypeScript, Vite, Vitest, Playwright。
 
+**Design references:** `design/00-全局交互基线设计.md`、`design/01-阶段一-JD解析与岗位胜任力模型设计.md`、`docs/superpowers/specs/2026-09-09-stage1-frontend-ui-design.md`
+
 **Spec:** `design/00-全局交互基线设计.md`、`design/01-阶段一-JD解析与岗位胜任力模型设计.md`
 
 ## Global Constraints

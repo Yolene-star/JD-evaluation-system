@@ -1,0 +1,3 @@
+export type StageStatus = 'COLLECTING' | 'ANALYZING' | 'REVIEWING' | 'CONFIRMED' | 'ARCHIVED'
+export function activeStage(status?: StageStatus): 1 | 2 { return status === 'CONFIRMED' ? 2 : 1 }
+export function StageRail({ status }: { status?: StageStatus } = {}) { const stage = activeStage(status); return <nav className="stage-rail" aria-label="评估阶段"><span className={stage > 1 ? 'complete' : 'current'} aria-current={stage === 1 ? 'step' : undefined}>JD 分析</span><span className={stage === 2 ? 'current' : ''} aria-current={stage === 2 ? 'step' : undefined}>模型确认</span><span>模拟面试</span><span>人才画像</span></nav> }

@@ -1,0 +1,140 @@
+from types import SimpleNamespace
+
+import pytest
+
+from backend.app.models import EvidenceType
+from backend.app.services.assessment_ai import (
+    AnalysisResult,
+    EvidenceResult,
+    GeneratedQuestion,
+    InvalidAIResponse,
+    validate_analysis,
+    validate_source_excerpt,
+    generate_main_question,
+    analyze_answer,
+    RetryableAIError,
+)
+from backend.app.services.assessment_contracts import ConfirmedCompetency, ConfirmedModelSnapshot
+
+
+def valid_result(**changes: object) -> AnalysisResult:
+    values = {
+        "answer_summary": "回答提到容量评估",
+        "evidence": [
+            EvidenceResult(
+                competency_id="c1",
+                type=EvidenceType.POSITIVE,
+                excerpt="容量评估",
+                summary="有相关实践",
+                confidence=0.8,
+            )
+        ],
+        "evidence_sufficiency": "SUFFICIENT",
+        "needs_follow_up": False,
+        "follow_up_reason": "",
+        "follow_up_question": "",
+    }
+    values.update(changes)
+    return AnalysisResult.model_validate(values)
+
+
+def test_source_excerpt_matches_after_whitespace_normalization() -> None:
+    assert validate_source_excerpt("我做过容量 评估。", "容量\n评估")
+    assert not validate_source_excerpt("我做过容量评估。", "不存在")
+
+
+def test_excerpt_not_in_answer_is_downgraded_to_uncertain() -> None:
+    result = validate_analysis(valid_result(evidence=[EvidenceResult(competency_id="c1", type=EvidenceType.POSITIVE, excerpt="不存在", summary="", confidence=0.8)]), "用户回答原文", "c1")
+    assert result.evidence[0].type == EvidenceType.UNCERTAIN
+
+
+def test_confidence_out_of_range_is_rejected() -> None:
+    with pytest.raises(InvalidAIResponse):
+        validate_analysis({**valid_result().model_dump(), "evidence": [{"competency_id": "c1", "type": "POSITIVE", "excerpt": "回答", "summary": "", "confidence": 1.2}]}, "回答", "c1")
+
+
+def test_cross_competency_evidence_is_rejected() -> None:
+    with pytest.raises(InvalidAIResponse):
+        validate_analysis(valid_result(evidence=[EvidenceResult(competency_id="c2", type=EvidenceType.POSITIVE, excerpt="回答", summary="", confidence=0.8)]), "回答", "c1")
+
+
+def test_follow_up_requires_reason_and_question() -> None:
+    with pytest.raises(InvalidAIResponse):
+        validate_analysis({**valid_result().model_dump(), "needs_follow_up": True, "follow_up_reason": "", "follow_up_question": ""}, "回答", "c1")
+
+
+def test_generated_question_limits_scope_to_three_ids() -> None:
+    question = GeneratedQuestion(content="请描述一次项目经历", covered_competency_ids=["c1", "c2", "c3"], turn_type="MAIN_QUESTION")
+    assert question.covered_competency_ids == ["c1", "c2", "c3"]
+    with pytest.raises(ValueError):
+        GeneratedQuestion(content="问题", covered_competency_ids=[], turn_type="MAIN_QUESTION")
+    with pytest.raises(ValueError):
+        GeneratedQuestion(content="问题", covered_competency_ids=["c1", "c2", "c3", "c4"], turn_type="MAIN_QUESTION")
+
+
+def test_main_question_transport_receives_grounded_context(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "设计可靠系统", 1.0, ("jd-e1",)),))
+    captured = {}
+    def transport(payload, **_kwargs):
+        captured.update(payload)
+        return {"choices": [{"message": {"content": '{"content":"请举例","covered_competency_ids":["c1"],"turn_type":"MAIN_QUESTION"}'}}]}
+    result = generate_main_question(snapshot, list(snapshot.competencies), [{"id": "jd-e1", "excerpt": "负责系统设计"}], [{"role": "USER", "content": "历史回答"}], transport)
+    assert result.turn_type == "MAIN_QUESTION"
+    user_context = captured["messages"][1]["content"]
+    assert "系统设计" in user_context
+    assert "负责系统设计" in user_context
+
+
+def test_main_question_rejects_competency_outside_snapshot(monkeypatch) -> None:
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+    with pytest.raises(InvalidAIResponse):
+        generate_main_question(snapshot, [ConfirmedCompetency("other", "越权", "", 1.0, ())], [], [], lambda *_args, **_kwargs: {})
+
+
+def test_analyze_transport_receives_competency_and_evidence(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+    captured = {}
+    def transport(payload, **_kwargs):
+        captured.update(payload)
+        return {"choices": [{"message": {"content": '{"answer_summary":"回答","evidence":[{"competency_id":"c1","type":"POSITIVE","excerpt":"回答","summary":"","confidence":0.8}],"evidence_sufficiency":"SUFFICIENT","needs_follow_up":false,"follow_up_reason":"","follow_up_question":""}'}}]}
+    analyze_answer(snapshot, snapshot.competencies[0], [{"id": "e1", "excerpt": "证据"}], [], "回答", transport)
+    assert "系统设计" in captured["messages"][0]["content"]
+    assert "证据" in captured["messages"][1]["content"]
+
+
+def test_missing_key_and_bad_provider_response_are_retryable(monkeypatch) -> None:
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: None)
+    with pytest.raises(RetryableAIError):
+        generate_main_question(snapshot, list(snapshot.competencies), [], [])
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    with pytest.raises(RetryableAIError):
+        generate_main_question(snapshot, list(snapshot.competencies), [], [], lambda *_args, **_kwargs: {})
+
+
+def test_missing_key_uses_deterministic_demo_analysis(monkeypatch) -> None:
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: None)
+
+    result = analyze_answer(snapshot, snapshot.competencies[0], [], [], "我在项目中负责系统设计并完成了容量评估")
+
+    assert result.evidence_sufficiency == "SUFFICIENT"
+    assert result.needs_follow_up is False
+    assert result.evidence[0].competency_id == "c1"
+    assert result.evidence[0].excerpt == "我在项目中负责系统设计并完成了容量评估"
+
+
+def test_provider_failure_falls_back_to_demo_analysis(monkeypatch) -> None:
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "configured-key")
+
+    def unavailable(*_args, **_kwargs):
+        raise RetryableAIError("provider unavailable")
+
+    monkeypatch.setattr("backend.app.services.assessment_ai._call_structured", unavailable)
+    result = analyze_answer(snapshot, snapshot.competencies[0], [], [], "不知道")
+
+    assert result.evidence_sufficiency == "INSUFFICIENT"
+    assert result.needs_follow_up is True

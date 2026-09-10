@@ -19,6 +19,8 @@
 - AI 叙述失败不影响基础评分报告，允许单独重试叙述生成。
 - 首版聚焦“一个证据包生成一个报告”的闭环，不包含复杂人工复核工作流。
 
+评分状态与叙述状态必须独立管理：`AssessmentReport.status` 表示确定性评分状态，`AssessmentReport.narrative_status` 表示 AI 叙述状态。叙述失败不得回滚或覆盖已生成的评分快照。
+
 ## 3. 领域模型
 
 ```text
@@ -89,6 +91,8 @@ ReportNarrative
 ```
 
 `EvidencePackage`、`RubricSet` 和 `AssessmentReport` 都是不可变快照。阶段三通过引用证据 ID 追溯阶段二原文，不复制或改写原始证据。
+
+已评价能力项数量定义为 `CompetencyEvaluation.status == SCORED` 的数量。`EXHAUSTED` 能力项在评分阶段可以进入 `SCORED`，但必须保留证据不足或较低置信度说明；只有 `INCOMPLETE` 不进入评分集合。
 
 ## 4. 评分规则
 
@@ -197,6 +201,7 @@ POST /api/assessment-sessions/{session_id}/reports
 GET  /api/assessment-sessions/{session_id}/reports
 GET  /api/reports/{report_id}
 POST /api/reports/{report_id}/narrative/retry
+GET  /api/reports/{report_id}/scoring-policy
 
 GET  /api/model-versions/{model_version_id}/rubrics
 POST /api/model-versions/{model_version_id}/rubrics
@@ -215,6 +220,8 @@ POST /api/rubric-sets/{rubric_set_id}/activate
 ```
 
 相同会话、证据包、Rubric、评分规则版本和幂等键只创建一份报告；重新计算必须使用新的幂等键并创建新报告版本。已激活 Rubric 不允许原地编辑。
+
+报告详情或评分规则接口必须至少返回评分规则版本及以下核心政策：`attainment_formula`、`partial_weight_policy`、`incomplete_policy`。这样“查看评分规则”不需要依赖隐藏的运行时配置。
 
 ## 8. 报告页面
 

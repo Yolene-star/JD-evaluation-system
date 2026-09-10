@@ -1,0 +1,10 @@
+**/node_modules/
+**/.git/
+**/chrome_user_data/
+**/__pycache__/
+**/.pytest_cache/
+**/*.db
+**/*.pma
+**/LOCK
+**/.env
+**/llm_config.json

@@ -1,0 +1,1 @@
+export function RetryNotice({ message = '分析暂时失败，已保留你的回答。', onRetry }: { message?: string; onRetry: () => void }) { return <div className="retry-notice" role="alert"><p>{message}</p><button onClick={onRetry}>重试分析</button></div> }

@@ -9,6 +9,7 @@
 **Tech Stack:** FastAPI, SQLAlchemy, Pydantic, React, TypeScript, Vitest, Playwright, pytest；沿用阶段一已配置的 AI 兼容接口和数据库运行方式。
 
 **Spec:** `docs/superpowers/specs/2026-09-09-stage2-adaptive-assessment-design.md`
+**Frontend UI Spec:** `docs/superpowers/specs/2026-09-09-stage2-frontend-ui-design.md`
 
 ## Global Constraints
 
