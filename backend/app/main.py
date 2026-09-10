@@ -60,10 +60,11 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-from .routes import analysis, assessments, chat, confirmation, evidence_packages, export, jds, models, projects, reports, rubrics  # noqa: E402
+from .routes import analysis, assessments, chat, confirmation, evidence_packages, export, jds, models, projects, reports, resume_contexts, rubrics  # noqa: E402
 
 app.include_router(projects.router)
 app.include_router(jds.router)
+app.include_router(resume_contexts.router)
 app.include_router(analysis.router)
 app.include_router(models.router)
 app.include_router(confirmation.router)
