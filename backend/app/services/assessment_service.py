@@ -41,7 +41,7 @@ def _latest_question(db: Session, session: AssessmentSession) -> AssessmentTurn 
 def _question_payload(turn: AssessmentTurn | None) -> dict | None:
     if turn is None:
         return None
-    return {"id": turn.id, "content": turn.content, "turn_type": turn.turn_type, "covered_competency_ids": turn.covered_competency_ids, "follow_up_target_competency_id": turn.covered_competency_ids[0] if turn.turn_type == AssessmentTurnType.FOLLOW_UP else None}
+    return {"id": turn.id, "content": turn.content, "turn_type": turn.turn_type, "covered_competency_ids": turn.covered_competency_ids, "follow_up_target_competency_id": turn.covered_competency_ids[0] if turn.turn_type == AssessmentTurnType.FOLLOW_UP else None, "background_reference": None}
 
 
 def _make_question(session: AssessmentSession, db: Session, target_ids: list[str], follow_up_target: str | None = None) -> dict:

@@ -15,6 +15,7 @@ from backend.app.services.assessment_ai import (
     RetryableAIError,
 )
 from backend.app.services.assessment_contracts import ConfirmedCompetency, ConfirmedModelSnapshot
+from backend.app.agent.schemas import ResumeReference
 
 
 def valid_result(**changes: object) -> AnalysisResult:
@@ -108,6 +109,18 @@ def test_main_question_rejects_competency_outside_snapshot(monkeypatch) -> None:
     snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
     with pytest.raises(InvalidAIResponse):
         generate_main_question(snapshot, [ConfirmedCompetency("other", "越权", "", 1.0, ())], [], [], lambda *_args, **_kwargs: {})
+
+
+def test_main_question_personalization_is_background_only_and_formal_target_is_frozen(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+    reference = ResumeReference(item_id="r1", item_type="project", prompt_hint="候选人背景提到 React 项目，请邀请其确认贡献。")
+
+    def transport(payload, **_kwargs):
+        return {"choices": [{"message": {"content": '{"content":"请确认项目中的系统设计贡献","covered_competency_ids":["c1"],"turn_type":"MAIN_QUESTION","evaluation_target":"评估 React","expected_evidence":[]}'}}]}
+
+    with pytest.raises(InvalidAIResponse):
+        generate_main_question(snapshot, list(snapshot.competencies), [], [], transport, agent_context={"formal_target": {"question_goal": "评估系统设计", "expected_evidence": ["结果"]}}, resume_reference=reference)
 
 
 def test_analyze_transport_receives_competency_and_evidence(monkeypatch) -> None:

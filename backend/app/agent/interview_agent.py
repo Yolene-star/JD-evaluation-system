@@ -162,23 +162,25 @@ class InterviewAgent:
 
         self.db.flush()
         context_after = self.memory.get_context(session)
-        decision = self.planner.decide(context_after, transitions)
+        formal_decision = self.planner.select_formal_target(context_after.formal_context(), transitions)
+        personalization = self.planner.select_personalization(formal_decision, context_after.resume_context)
         question = self._execute_decision(
             session,
             snapshot,
             context_after,
-            decision,
+            formal_decision,
             analysis_by_id,
+            personalization,
         )
         phase = {
             AgentAction.FOLLOW_UP: AgentPhase.FOLLOWING_UP,
             AgentAction.NEXT_COMPETENCY: AgentPhase.MOVING_NEXT,
             AgentAction.FINISH: AgentPhase.COMPLETED,
-        }[decision.action]
+        }[formal_decision.action]
         result = AgentTurnResult(
-            decision=decision,
+            decision=formal_decision,
             current_question=question,
-            agent_status=self._status(context_after, decision, phase),
+            agent_status=self._status(context_after, formal_decision, phase),
         )
         self._record_agent_status(session.id, answer.id, result)
         return result
@@ -190,6 +192,7 @@ class InterviewAgent:
         context: Any,
         decision: PlannerDecision,
         analysis_by_id: dict[str, AnalysisResult],
+        resume_reference: Any | None = None,
     ) -> dict[str, Any] | None:
         if decision.action is AgentAction.FINISH:
             record_event(
@@ -235,7 +238,9 @@ class InterviewAgent:
                             for item in context.conversation
                             if item.role == AssessmentTurnRole.SYSTEM.value
                         ],
+                        "formal_target": decision.model_dump(mode="json"),
                     },
+                    resume_reference=resume_reference,
                 )
             except RetryableAIError:
                 question = GeneratedQuestion(
@@ -289,6 +294,19 @@ class InterviewAgent:
                 "FOLLOW_UP_GENERATED",
                 {"competency_id": target_id, "turn_id": turn.id},
             )
+        record_event(
+            self.db,
+            session.id,
+            "QUESTION_GENERATED",
+            {
+                "turn_id": turn.id,
+                "competency_id": target_id,
+                "turn_type": turn_type.value,
+                "background_reference": question.background_reference,
+                "evaluation_target": question.evaluation_target,
+                "expected_evidence": list(question.expected_evidence),
+            },
+        )
         return {
             "id": turn.id,
             "content": turn.content,
@@ -297,6 +315,7 @@ class InterviewAgent:
             "follow_up_target_competency_id": (
                 target_id if turn_type is AssessmentTurnType.FOLLOW_UP else None
             ),
+            "background_reference": question.background_reference,
         }
 
     def _retry_result(

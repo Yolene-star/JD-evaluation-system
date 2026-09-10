@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from backend.app.agent.tools import EvidenceTool, QuestionTool, ReportTool, ScoringTool
 from backend.app.services.assessment_ai import GeneratedQuestion
+from backend.app.agent.schemas import ResumeReference
 
 
 def test_question_tool_forwards_agent_context_and_preserves_metadata() -> None:
@@ -36,6 +37,28 @@ def test_question_tool_forwards_agent_context_and_preserves_metadata() -> None:
     assert result.evaluation_target == "验证结果"
     assert result.expected_evidence == ["指标变化"]
     assert captured["agent_context"]["missing_information"] == ["结果"]
+
+
+def test_question_tool_forwards_one_background_reference_without_changing_formal_target() -> None:
+    captured: dict = {}
+    reference = ResumeReference(item_id="resume-project-1", item_type="project", prompt_hint="候选人背景提到 React 项目，请邀请其确认实际贡献。")
+
+    def generate(snapshot, competencies, jd_evidence, transcript, transport=None, *, agent_context=None, resume_reference=None):
+        captured["resume_reference"] = resume_reference
+        return GeneratedQuestion(
+            content="请确认你在该项目中的系统设计贡献，并说明结果",
+            covered_competency_ids=["c-1"],
+            turn_type="MAIN_QUESTION",
+            evaluation_target="获取系统设计的岗位相关证据",
+            expected_evidence=["本人行动", "可验证结果"],
+            background_reference={"source_type": "BACKGROUND_ONLY", "item_id": "resume-project-1", "item_type": "project", "display_summary": "候选人背景提到 React 项目"},
+        )
+
+    result = QuestionTool(generate_fn=generate).generate(snapshot=object(), competencies=[SimpleNamespace(id="c-1")], jd_evidence=[], transcript=[], agent_context={"formal_target": {"question_goal": "获取系统设计的岗位相关证据"}}, resume_reference=reference)
+    assert result.covered_competency_ids == ["c-1"]
+    assert result.evaluation_target == "获取系统设计的岗位相关证据"
+    assert result.background_reference["source_type"] == "BACKGROUND_ONLY"
+    assert captured["resume_reference"] is reference
 
 
 def test_question_tool_builds_follow_up_from_validated_analysis() -> None:

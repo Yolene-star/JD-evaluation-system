@@ -62,6 +62,7 @@ class GeneratedQuestion(BaseModel):
     turn_type: str = "MAIN_QUESTION"
     evaluation_target: str | None = None
     expected_evidence: list[str] = Field(default_factory=list)
+    background_reference: dict[str, str] | None = None
 
     @field_validator("turn_type")
     @classmethod
@@ -75,6 +76,20 @@ class GeneratedQuestion(BaseModel):
     def valid_ids(cls, value: list[str]) -> list[str]:
         if any(not item.strip() for item in value) or len(set(value)) != len(value):
             raise ValueError("covered competency IDs must be unique and non-empty")
+        return value
+
+    @field_validator("background_reference")
+    @classmethod
+    def valid_background_reference(cls, value: dict[str, str] | None) -> dict[str, str] | None:
+        if value is None:
+            return None
+        required = {"source_type", "item_id", "item_type", "display_summary"}
+        if set(value) != required or value["source_type"] != "BACKGROUND_ONLY":
+            raise ValueError("invalid background reference")
+        if any(not isinstance(item, str) or not item.strip() for item in value.values()):
+            raise ValueError("background reference fields must be non-empty strings")
+        if len(value["display_summary"]) > 500:
+            raise ValueError("background reference summary is too long")
         return value
 
 
@@ -147,6 +162,7 @@ def generate_main_question(
     transport: Callable[..., Any] | None = None,
     *,
     agent_context: dict[str, Any] | None = None,
+    resume_reference: Any | None = None,
 ) -> GeneratedQuestion:
     from .assessment_prompts import build_question_prompt
     ids = [item.id for item in competencies]
@@ -159,19 +175,37 @@ def generate_main_question(
         raise InvalidAIResponse("题目包含确认快照之外的能力项")
     competency_payload = [asdict(item) if is_dataclass(item) else dict(item) for item in competencies]
     result = _call_structured(
-        build_question_prompt(competencies, jd_evidence, transcript),
+        build_question_prompt(competencies, jd_evidence, transcript, resume_reference=resume_reference),
         {
             "model_version_id": snapshot.model_version_id,
             "competencies": competency_payload,
             "jd_evidence": jd_evidence,
             "transcript": transcript,
             "agent_context": agent_context or {},
+            "resume_reference": (
+                resume_reference.model_dump(mode="json")
+                if hasattr(resume_reference, "model_dump")
+                else resume_reference
+            ),
         },
         GeneratedQuestion,
         transport,
     )
     if result.covered_competency_ids != ids or result.turn_type != "MAIN_QUESTION":
         raise InvalidAIResponse("AI 修改了题目覆盖能力范围")
+    formal_target = (agent_context or {}).get("formal_target") or {}
+    if formal_target:
+        if result.evaluation_target != formal_target.get("question_goal"):
+            raise InvalidAIResponse("AI 修改了正式评估目标")
+        if result.expected_evidence != list(formal_target.get("expected_evidence", [])):
+            raise InvalidAIResponse("AI 修改了正式证据目标")
+    if resume_reference is not None:
+        reference = resume_reference.model_dump(mode="json") if hasattr(resume_reference, "model_dump") else resume_reference
+        if result.background_reference is not None:
+            if result.background_reference.get("source_type") != "BACKGROUND_ONLY" or result.background_reference.get("item_id") != reference.get("item_id") or result.background_reference.get("item_type") != reference.get("item_type"):
+                raise InvalidAIResponse("AI 修改或虚构了背景引用")
+        else:
+            result = result.model_copy(update={"background_reference": {"source_type": "BACKGROUND_ONLY", "item_id": reference["item_id"], "item_type": reference["item_type"], "display_summary": reference.get("prompt_hint", "")[:500]}})
     return result
 
 

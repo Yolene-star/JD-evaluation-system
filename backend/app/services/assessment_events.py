@@ -24,6 +24,7 @@ ASSESSMENT_EVENT_ACTIONS = frozenset(
         "AI_RETRY_REQUESTED",
         "AI_INVALID_RESPONSE",
         "AGENT_DECISION_RECORDED",
+        "QUESTION_GENERATED",
     }
 )
 
