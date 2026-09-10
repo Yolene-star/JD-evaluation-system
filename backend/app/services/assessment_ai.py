@@ -206,7 +206,8 @@ def generate_main_question(
     if resume_reference is not None:
         reference = resume_reference.model_dump(mode="json") if hasattr(resume_reference, "model_dump") else resume_reference
         if result.background_reference is not None:
-            if result.background_reference.get("source_type") != "BACKGROUND_ONLY" or result.background_reference.get("item_id") != reference.get("item_id") or result.background_reference.get("item_type") != reference.get("item_type"):
+            expected_summary = str(reference.get("prompt_hint", ""))[:500]
+            if result.background_reference.get("source_type") != "BACKGROUND_ONLY" or result.background_reference.get("item_id") != reference.get("item_id") or result.background_reference.get("item_type") != reference.get("item_type") or result.background_reference.get("display_summary") != expected_summary:
                 raise InvalidAIResponse("AI 修改或虚构了背景引用")
         else:
             result = result.model_copy(update={"background_reference": {"source_type": "BACKGROUND_ONLY", "item_id": reference["item_id"], "item_type": reference["item_type"], "display_summary": reference.get("prompt_hint", "")[:500]}})
