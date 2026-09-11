@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from .models import (
     AssessmentCompletion,
@@ -78,6 +78,7 @@ class AssessmentSessionResponse(BaseModel):
 class AssessmentCreateRequest(BaseModel):
     model_version_id: str | None = None
     use_resume_context: bool = False
+    profile: dict = Field(default_factory=dict)
 
 
 class CompetencyAssessmentResponse(BaseModel):

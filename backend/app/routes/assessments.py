@@ -34,6 +34,7 @@ def create(
                 project_id,
                 request.model_version_id,
                 use_resume_context=request.use_resume_context,
+                profile=request.profile,
             ),
         )
     except ValueError as exc:

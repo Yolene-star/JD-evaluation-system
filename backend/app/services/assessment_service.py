@@ -92,9 +92,14 @@ def create_session(
     model_version_id: str | None = None,
     *,
     use_resume_context: bool = False,
+    profile: dict | None = None,
 ) -> AssessmentSession:
     snapshot = get_confirmed_model_snapshot(db, project_id, model_version_id)
-    session = AssessmentSession(project_id=project_id, model_version_id=snapshot.model_version_id)
+    allowed = {"assessment_purpose", "assessment_depth", "difficulty", "time_limit", "interview_style"}
+    normalized_profile = {key: value for key, value in (profile or {}).items() if key in allowed}
+    normalized_profile.setdefault("assessment_purpose", "INTERVIEW_PRACTICE")
+    normalized_profile.setdefault("assessment_depth", "STANDARD")
+    session = AssessmentSession(project_id=project_id, model_version_id=snapshot.model_version_id, assessment_profile=normalized_profile)
     db.add(session)
     db.flush()
     if use_resume_context:
@@ -176,6 +181,7 @@ def serialize_session(
         "agent_status": agent_status.model_dump(mode="json") if isinstance(agent_status, AgentStatus) else agent_status,
         "evidence_groups": evidence_groups,
         "resume_context": serialize_resume_snapshot(db, session.id),
+        "assessment_profile": session.assessment_profile or {"assessment_purpose": "INTERVIEW_PRACTICE", "assessment_depth": "STANDARD"},
     }
 
 

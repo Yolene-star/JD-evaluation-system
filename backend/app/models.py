@@ -86,6 +86,7 @@ class ModelVersion(Base):
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
     version: Mapped[str] = mapped_column(String(20), default="draft")
     status: Mapped[ModelVersionStatus] = mapped_column(Enum(ModelVersionStatus), default=ModelVersionStatus.DRAFT)
+    draft_json: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -199,6 +200,7 @@ class AssessmentSession(Base):
     completion: Mapped[AssessmentCompletion] = mapped_column(Enum(AssessmentCompletion), default=AssessmentCompletion.NONE)
     # References the immutable confirmed-snapshot competency ID, not a mutable stage-one row.
     current_competency_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    assessment_profile: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
