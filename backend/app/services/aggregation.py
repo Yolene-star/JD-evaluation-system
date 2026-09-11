@@ -25,12 +25,17 @@ def aggregate_competencies(items: list[dict]) -> list[dict]:
     total_jds = max(1, len({item["jd_id"] for item in items}))
     grouped: OrderedDict[str, dict] = OrderedDict()
     for item in items:
-        row = grouped.setdefault(item["name"], {"name": item["name"], "source_jd_ids": [], "evidence_ids": [], "weight": 0.0})
+        row = grouped.setdefault(item["name"], {"name": item["name"], "description": item.get("description", ""), "source_jd_ids": [], "evidence_ids": [], "indicators": [], "evidence_requirements": [], "weight": 0.0})
         if item["jd_id"] not in row["source_jd_ids"]:
             row["source_jd_ids"].append(item["jd_id"])
         for evidence_id in item.get("evidence_ids", []):
             if evidence_id not in row["evidence_ids"]:
                 row["evidence_ids"].append(evidence_id)
+        for field in ("indicators", "evidence_requirements"):
+            for value in item.get(field, []) or []:
+                value = str(value).strip()
+                if value and value not in row[field]:
+                    row[field].append(value)
         row["weight"] += float(item.get("weight") or 1.0)
     total = sum(row["weight"] for row in grouped.values())
     for row in grouped.values():

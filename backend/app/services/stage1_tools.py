@@ -49,7 +49,7 @@ def _competencies(db: Session, project_id: str, name: str, jd_title: str | None 
 def _aggregate(db: Session, project_id: str) -> tuple[ModelVersion, list[dict], list[dict]]:
     jds = db.scalars(select(JobDescription).where(JobDescription.project_id == project_id, JobDescription.participates_in_model.is_(True))).all()
     items = [
-        {"name": row.name, "jd_id": jd.id, "evidence_ids": row.evidence_ids, "weight": row.weight}
+        {"name": row.name, "description": row.description, "jd_id": jd.id, "evidence_ids": row.evidence_ids, "weight": row.weight, "indicators": [], "evidence_requirements": []}
         for jd in jds
         for row in db.scalars(select(Competency).where(Competency.jd_id == jd.id)).all()
     ]
@@ -234,7 +234,7 @@ def execute_stage1_tool(db: Session, project: Project, intent: Stage1Intent) -> 
             competencies = draft.get("competencies", []); conflicts = draft.get("conflicts", [])
         else:
             jds = db.scalars(select(JobDescription).where(JobDescription.project_id == project.id, JobDescription.participates_in_model.is_(True))).all()
-            items = [{"name": row.name, "jd_id": jd.id, "evidence_ids": row.evidence_ids, "weight": row.weight} for jd in jds for row in db.scalars(select(Competency).where(Competency.jd_id == jd.id)).all()]
+            items = [{"name": row.name, "description": row.description, "jd_id": jd.id, "evidence_ids": row.evidence_ids, "weight": row.weight, "indicators": [], "evidence_requirements": []} for jd in jds for row in db.scalars(select(Competency).where(Competency.jd_id == jd.id)).all()]
             competencies = aggregate_competencies(items); conflicts = detect_conflicts(items)
         if conflicts: raise HTTPException(status_code=409, detail={"code": "BLOCKING_CONFLICTS", "conflicts": conflicts})
         payload = {"model_id": model.id, "project_id": project.id, "competencies": competencies, "conflict_count": 0}
