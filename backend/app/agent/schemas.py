@@ -96,6 +96,8 @@ class PlannerDecision(BaseModel):
     question_goal: str | None = None
     indicator_ids: list[str] = Field(default_factory=list)
     expected_evidence: list[str] = Field(default_factory=list)
+    target_indicator_ids: list[str] = Field(default_factory=list)
+    question_strategy: Literal["OPEN_EXPLORATION", "DETAIL_PROBE", "TECHNICAL_DEEPEN", "RESULT_VERIFY", "SCENARIO_TEST"] = "OPEN_EXPLORATION"
 
 
 class AgentStatus(BaseModel):

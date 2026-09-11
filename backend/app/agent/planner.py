@@ -61,6 +61,8 @@ class AssessmentPlanner:
                 ),
                 question_goal=f"补充{target.name}的具体做法、依据和结果",
                 indicator_ids=list(target.indicator_ids),
+                target_indicator_ids=list(target.indicator_ids),
+                question_strategy="RESULT_VERIFY" if target.expected_evidence else "DETAIL_PROBE",
                 expected_evidence=list(target.expected_evidence),
             )
 
@@ -93,6 +95,8 @@ class AssessmentPlanner:
             reason=f"状态机已推进到下一能力项：{target.name}",
             question_goal=f"获取{target.name}的岗位相关证据",
             indicator_ids=list(target.indicator_ids),
+            target_indicator_ids=list(target.indicator_ids),
+            question_strategy="OPEN_EXPLORATION",
             expected_evidence=list(target.expected_evidence),
         )
 
