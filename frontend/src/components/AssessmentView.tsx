@@ -31,9 +31,20 @@ export function AssessmentTimeline({ snapshot, competencyNames }: { snapshot: As
   </div>
 }
 
-export function AssessmentView({ projectId, onSnapshot, onSessionId }: { projectId: string; onSnapshot?: (snapshot: AssessmentSnapshot) => void; onSessionId?: (sessionId: string) => void }) {
+export function AssessmentView({ projectId, onSnapshot, onSessionId, snapshotOverride }: { projectId: string; onSnapshot?: (snapshot: AssessmentSnapshot) => void; onSessionId?: (sessionId: string) => void; snapshotOverride?: AssessmentSnapshot }) {
   const [sessionId, setSessionId] = useState<string>(); const [snapshot, setSnapshot] = useState<AssessmentSnapshot>(); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [assistantNotices, setAssistantNotices] = useState<string[]>([]); const createdFor = useState<{ id?: string }>({})[0]
   const [resume, setResume] = useState<ResumeContextSummary>(); const [resumeReady, setResumeReady] = useState(false); const [useResume, setUseResume] = useState(false)
+  // Stage controls (pause/resume/finish) are rendered by the parent workbench.
+  // Keep this view in sync with the parent's refreshed snapshot so a successful
+  // resume immediately reveals the answer composer instead of leaving the old
+  // PAUSED view mounted.
+  useEffect(() => {
+    if (!snapshotOverride) return
+    setSnapshot(snapshotOverride)
+    if (snapshotOverride.sessionId && snapshotOverride.sessionId !== sessionId) {
+      setSessionId(snapshotOverride.sessionId)
+    }
+  }, [snapshotOverride, sessionId])
   const refresh = async (id = sessionId) => { if (!id) return; const next = await assessmentApi.snapshot<AssessmentSnapshot>(id); setSnapshot(next); onSnapshot?.(next) }
   const create = async (withResume = useResume) => { setBusy(true); setError(''); try { const result = await assessmentApi.create(projectId, undefined, withResume) as { id?: string; session_id?: string }; const id = result.id ?? result.session_id; if (!id) throw new Error('未返回测评会话'); setSessionId(id); onSessionId?.(id); await refresh(id) } catch (cause) { setError(cause instanceof Error ? cause.message : '创建测评失败') } finally { setBusy(false) } }
   useEffect(() => { if (createdFor.id === projectId) return; createdFor.id = projectId; setSessionId(undefined); setSnapshot(undefined); onSessionId?.(''); setResumeReady(false); resumeApi.current(projectId).then(value => { setResume(value); setUseResume(true) }).catch(() => { setResume(undefined); setUseResume(false) }).finally(() => setResumeReady(true)) }, [projectId])
