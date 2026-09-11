@@ -30,7 +30,7 @@ def _value(item: Any, key: str, default: Any = None) -> Any:
     return item.get(key, default) if isinstance(item, dict) else getattr(item, key, default)
 
 
-def score_competency(*, competency_id: str, status: str, rubric: dict, observations: list[dict]) -> CompetencyScore:
+def score_competency(*, competency_id: str, status: str, rubric: dict, observations: list[dict], matched_indicators: list[str] | None = None, missing_indicators: list[str] | None = None) -> CompetencyScore:
     status = getattr(status, "value", status)
     evidence_ids = [str(_value(obs, "id")) for obs in observations if _value(obs, "id") is not None]
     if status == "INCOMPLETE":
@@ -60,10 +60,10 @@ def score_competency(*, competency_id: str, status: str, rubric: dict, observati
     score = round(coverage * 10, 1)
     score = float(max(0.0, min(10.0, score)))
     confidence = max(0.0, min(1.0, (sum(float(_value(obs, "confidence", 0.0) or 0.0) for obs in observations) / len(observations) if observations else 0.0) * (1 - 0.25 * min(1, len(uncertain)))))
-    explicit_matched = [str(value) for obs in positive for value in (_value(obs, "matched_indicator_ids", []) or [])]
+    explicit_matched = [str(value) for value in (matched_indicators or [])] or [str(value) for obs in positive for value in (_value(obs, "matched_indicator_ids", []) or [])]
     matched_ids = explicit_matched or [str(_value(obs, "id")) for obs in positive]
     negative_ids = [str(_value(obs, "id")) for obs in negative]
-    explicit_missing = [str(value) for obs in observations for value in (_value(obs, "missing_indicator_ids", []) or [])]
+    explicit_missing = [str(value) for value in (missing_indicators or [])] or [str(value) for obs in observations for value in (_value(obs, "missing_indicator_ids", []) or [])]
     missing_ids = explicit_missing or [indicator for indicator in indicators if indicator not in matched_ids]
     return CompetencyScore(competency_id, status, score, round(score / 10, 4), level, evidence_ids, matched_ids, negative_ids, missing_ids, round(confidence, 4), f"覆盖 {len(matched_ids)}/{len(indicators)} 项指标")
 
@@ -76,7 +76,7 @@ def score_evidence_package(package: dict, rubrics: dict[str, dict]) -> EvidenceP
     for item in package.get("competencies", []):
         competency_id = str(_value(item, "competency_id"))
         weight = float(_value(item, "weight", _value(rubrics.get(competency_id, {}), "weight", 0.0)) or 0.0)
-        result = score_competency(competency_id=competency_id, status=str(getattr(_value(item, "status", "INCOMPLETE"), "value", _value(item, "status", "INCOMPLETE"))), rubric=rubrics.get(competency_id, {}), observations=list(_value(item, "observations", []) or []))
+        result = score_competency(competency_id=competency_id, status=str(getattr(_value(item, "status", "INCOMPLETE"), "value", _value(item, "status", "INCOMPLETE"))), rubric=rubrics.get(competency_id, {}), observations=list(_value(item, "observations", []) or []), matched_indicators=list(_value(item, "matched_indicators", []) or []), missing_indicators=list(_value(item, "missing_indicators", []) or []))
         evaluations.append(result)
         if result.score is None:
             unevaluated_weight += weight

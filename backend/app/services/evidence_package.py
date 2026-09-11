@@ -36,6 +36,8 @@ def build_evidence_package(db: Session, session_id: str) -> dict:
                 "evidence_sufficiency": item.evidence_sufficiency,
                 "turn_ids": set(),
                 "observations": {},
+                "matched_indicators": [],
+                "missing_indicators": [],
             },
         )
         if status_rank.get(getattr(item.status, "value", item.status), 0) > status_rank.get(getattr(current["status"], "value", current["status"]), 0):
@@ -60,6 +62,8 @@ def build_evidence_package(db: Session, session_id: str) -> dict:
             "evidence_sufficiency": item["evidence_sufficiency"],
             "turn_ids": sorted(item["turn_ids"]),
             "observations": list(item["observations"].values()),
+            "matched_indicators": list(item["matched_indicators"]),
+            "missing_indicators": list(item["missing_indicators"]),
         }
         for item in grouped.values()
     ]
