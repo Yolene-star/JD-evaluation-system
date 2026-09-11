@@ -30,7 +30,7 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
 export type HealthResponse = { status: 'ok' }
 
 export const assessmentApi = {
-  create: (projectId: string, modelVersionId?: string, useResumeContext = false) => apiFetch(`/api/projects/${projectId}/assessments`, { method: 'POST', body: JSON.stringify({ ...(modelVersionId ? { model_version_id: modelVersionId } : {}), use_resume_context: useResumeContext }) }),
+  create: (projectId: string, modelVersionId?: string, useResumeContext = false, profile?: Record<string, unknown>) => apiFetch(`/api/projects/${projectId}/assessments`, { method: 'POST', body: JSON.stringify({ ...(modelVersionId ? { model_version_id: modelVersionId } : {}), use_resume_context: useResumeContext, ...(profile ? { profile } : {}) }) }),
   snapshot: <T>(sessionId: string) => apiFetch<unknown>(`/api/assessments/${sessionId}`).then(raw => mapAssessmentSnapshot(raw) as T),
   start: <T>(sessionId: string) => apiFetch<T>(`/api/assessments/${sessionId}/start`, { method: 'POST' }),
   submit: <T>(sessionId: string, content: string, idempotencyKey: string) => apiFetch<T>(`/api/assessments/${sessionId}/turns`, { method: 'POST', body: JSON.stringify({ content, idempotency_key: idempotencyKey }) }),
