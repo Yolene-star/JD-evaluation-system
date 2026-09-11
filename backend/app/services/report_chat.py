@@ -1,24 +1,50 @@
-from ..models import AssessmentReport
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from ..models import AssessmentReport, CompetencyEvaluation, EvidenceObservation, ReportChatMessage
+from .assessment_ai import _call_structured
 
 
-def answer_report_question(report: AssessmentReport, question: str) -> tuple[str, list[str]]:
-    """Deterministic, read-only fallback grounded in the saved report facts."""
-    scored = [item for item in report.evaluations if item.score is not None]
-    incomplete = [item for item in report.evaluations if item.score is None]
-    evidence_ids = sorted({evidence_id for item in report.evaluations for evidence_id in (item.evidence_ids or [])})
-    normalized = question.strip()
-    if any(word in normalized for word in ("改进", "提升", "建议", "怎么做")):
-        if incomplete:
-            names = "、".join(item.competency_id for item in incomplete)
-            answer = f"建议先为 {names} 补充具体经历、个人行动和结果证据；这些能力当前不可完全评价，不能按 0 分解释。"
-        elif scored:
-            weakest = min(scored, key=lambda item: item.score or 0)
-            answer = f"可优先改善 {weakest.competency_id}：当前为 {weakest.score}/10。建议补充复杂场景、权衡过程和可验证结果。"
-        else:
-            answer = "当前没有足够的已评分能力，建议先补充测评证据。"
-    elif any(word in normalized for word in ("为什么", "分数", "评分", "匹配度")):
-        answer = f"当前综合匹配度为 {report.match_score if report.match_score is not None else '待评价'}。该结果只聚合已评价能力；已评价权重为 {round(report.evaluated_weight * 100)}%，未评价能力不会按 0 分处理。"
-    else:
-        summary = "；".join(f"{item.competency_id}：{item.score}/10" for item in scored) or "暂无已评分能力"
-        answer = f"基于报告 v{report.report_version}，能力概况为：{summary}。你可以继续询问某项能力的评分依据或改进建议。"
-    return answer, evidence_ids
+class ReportChatResult(BaseModel):
+    answer: str = Field(min_length=1)
+    cited_evidence_ids: list[str] = Field(default_factory=list)
+
+
+REPORT_CHAT_PROMPT = """你是岗位能力评价报告咨询 Agent。请基于提供的报告 JSON、能力评价、可引用证据和历史对话，用自然、具体、克制的中文回答用户问题。
+只解释数据库中已有的报告事实，不修改分数、状态、模型或历史记录，不把未评价能力当成 0 分，不补造经历。若证据不足，明确说明还缺什么面试证据。
+必须只返回 JSON，格式为：{"answer":"自然语言回答","cited_evidence_ids":["数据库中的证据ID"]}。answer 必须是完整回答，不能只返回关键词。
+"""
+
+
+def _report_context(db: Session, report: AssessmentReport) -> dict:
+    evaluations = list(db.scalars(select(CompetencyEvaluation).where(CompetencyEvaluation.report_id == report.id)))
+    evidence_ids = sorted({item_id for item in evaluations for item_id in (item.evidence_ids or [])})
+    evidence = list(db.scalars(select(EvidenceObservation).where(EvidenceObservation.id.in_(evidence_ids)))) if evidence_ids else []
+    return {
+        "report": {
+            "version": report.report_version,
+            "completion": getattr(report.completion, "value", report.completion),
+            "evaluated_weight": report.evaluated_weight,
+            "unevaluated_weight": report.unevaluated_weight,
+            "match_score": report.match_score,
+            "match_score_type": report.match_score_type,
+            "scoring_rule_version": report.scoring_rule_version,
+        },
+        "evaluations": [{
+            "competency_id": item.competency_id, "status": item.status, "score": item.score,
+            "attainment": item.attainment, "level": item.level, "rationale": item.rationale,
+            "evidence_ids": item.evidence_ids or [], "missing_indicator_ids": item.missing_indicator_ids or [],
+        } for item in evaluations],
+        "evidence": [{"id": item.id, "text": item.summary or item.excerpt, "turn_id": item.turn_id} for item in evidence],
+    }
+
+
+def answer_report_question(db: Session, report: AssessmentReport, question: str) -> tuple[str, list[str]]:
+    history = list(db.scalars(select(ReportChatMessage).where(ReportChatMessage.report_id == report.id).order_by(ReportChatMessage.created_at, ReportChatMessage.id)))
+    payload = {"question": question, "report_context": _report_context(db, report), "conversation": [{"role": item.role, "content": item.content} for item in history[-12:]]}
+    result = _call_structured(REPORT_CHAT_PROMPT, payload, ReportChatResult)
+    allowed_ids = {item["id"] for item in payload["report_context"]["evidence"]}
+    return result.answer.strip(), [item for item in result.cited_evidence_ids if item in allowed_ids]

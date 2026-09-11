@@ -25,7 +25,17 @@ def _report() -> str:
         return report.id
 
 
-def test_report_chat_persists_messages_and_does_not_modify_score() -> None:
+def test_report_chat_uses_llm_and_does_not_modify_score(monkeypatch) -> None:
+    from backend.app.services import report_chat
+
+    monkeypatch.setattr(
+        report_chat,
+        "_call_structured",
+        lambda *args, **kwargs: report_chat.ReportChatResult(
+            answer="根据当前报告，综合匹配度暂为 70；主要依据是已评价能力的加权结果。建议补充未评价能力的面试证据。",
+            cited_evidence_ids=[],
+        ),
+    )
     with TestClient(app) as client:
         report_id = _report()
         response = client.post(f"/api/reports/{report_id}/chat/messages", json={"content": "为什么得到这个分数？"})

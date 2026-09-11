@@ -142,7 +142,11 @@ def ask_report_agent(report_id: str, payload: dict, db: Session = Depends(get_db
         raise HTTPException(status_code=422, detail="问题不能为空")
     user_message = ReportChatMessage(report_id=report.id, role="user", content=question, cited_evidence_ids=[])
     db.add(user_message)
-    answer, evidence_ids = answer_report_question(report, question)
+    try:
+        answer, evidence_ids = answer_report_question(db, report, question)
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail=f"报告咨询暂时不可用：{exc}") from exc
     agent_message = ReportChatMessage(report_id=report.id, role="agent", content=answer, cited_evidence_ids=evidence_ids)
     db.add(agent_message)
     db.commit()
