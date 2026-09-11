@@ -15,6 +15,8 @@ from backend.app.models import (
 )
 from backend.app.services.report_service import generate_report
 from backend.app.services.rubrics import activate_rubric_set, create_default_rubric_set
+from backend.app.services.evidence_package import build_evidence_package
+from backend.app.models import CompetencyAssessment, CompetencyAssessmentStatus
 
 
 engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -87,3 +89,17 @@ def test_report_includes_deterministic_profile_when_no_llm_adapter_is_available(
         assert report.narrative is not None
         assert report.narrative.overview
         assert report.narrative_status is ReportNarrativeStatus.READY
+
+
+def test_evidence_package_merges_duplicate_competency_assessments() -> None:
+    with SessionLocal() as db:
+        session, _rubric, _package = _fixture(db)
+        db.add_all([
+            CompetencyAssessment(session_id=session.id, competency_id="c1", status=CompetencyAssessmentStatus.INCOMPLETE),
+            CompetencyAssessment(session_id=session.id, competency_id="c1", status=CompetencyAssessmentStatus.SUFFICIENT),
+        ])
+        db.commit()
+
+        package = build_evidence_package(db, session.id)
+
+        assert [item["competency_id"] for item in package["competencies"]] == ["c1"]

@@ -164,18 +164,53 @@ def validate_analysis(result: AnalysisResult | dict[str, Any], answer: str, comp
     return ValidatedAnalysis.model_validate(values)
 
 
-def _parse_provider_response(body: str, model: type[BaseModel]) -> BaseModel:
+def _parse_provider_response(
+    body: str,
+    model: type[BaseModel],
+    *,
+    analysis_competency_id: str | None = None,
+) -> BaseModel:
     try:
         payload = json.loads(body)
         content = payload["choices"][0]["message"]["content"]
         if isinstance(content, str):
             content = json.loads(content)
+        if model is AnalysisResult and isinstance(content, dict):
+            normalized_evidence = []
+            for item in content.get("evidence", []) or []:
+                if not isinstance(item, dict):
+                    continue
+                raw_type = str(item.get("type", "UNCERTAIN")).upper()
+                normalized_type = {
+                    "DIRECT": EvidenceType.POSITIVE.value,
+                    "POSITIVE": EvidenceType.POSITIVE.value,
+                    "NEGATIVE": EvidenceType.NEGATIVE.value,
+                    "MISSING": EvidenceType.MISSING.value,
+                    "UNCERTAIN": EvidenceType.UNCERTAIN.value,
+                }.get(raw_type, EvidenceType.UNCERTAIN.value)
+                normalized_evidence.append(
+                    {
+                        "competency_id": item.get("competency_id") or analysis_competency_id or "",
+                        "type": normalized_type,
+                        "excerpt": str(item.get("excerpt") or ""),
+                        "summary": str(item.get("summary") or item.get("reason") or ""),
+                        "confidence": float(item.get("confidence", 0.8 if normalized_type == EvidenceType.POSITIVE.value else 0.5)),
+                    }
+                )
+            content = {**content, "evidence": normalized_evidence}
         return model.model_validate(content)
     except Exception as exc:
         raise RetryableAIError("AI 返回无效 JSON 或不符合 Schema") from exc
 
 
-def _call_structured(system_prompt: str, user_payload: dict[str, Any], response_model: type[BaseModel], transport: Callable[..., Any] | None = None) -> BaseModel:
+def _call_structured(
+    system_prompt: str,
+    user_payload: dict[str, Any],
+    response_model: type[BaseModel],
+    transport: Callable[..., Any] | None = None,
+    *,
+    analysis_competency_id: str | None = None,
+) -> BaseModel:
     api_key = get_llm_api_key()
     if not api_key:
         raise RetryableAIError("未配置 AI API Key")
@@ -188,7 +223,11 @@ def _call_structured(system_prompt: str, user_payload: dict[str, Any], response_
             request = Request(settings.llm_base_url.rstrip("/") + "/v1/chat/completions", data=json.dumps(request_payload).encode(), headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"})
             with urlopen(request, timeout=30) as response:
                 raw = response.read().decode()
-        return _parse_provider_response(raw if isinstance(raw, str) else json.dumps(raw), response_model)
+        return _parse_provider_response(
+            raw if isinstance(raw, str) else json.dumps(raw),
+            response_model,
+            analysis_competency_id=analysis_competency_id,
+        )
     except RetryableAIError:
         raise
     except Exception as exc:
@@ -300,5 +339,6 @@ def analyze_answer(snapshot: Any, competency: Any, jd_evidence: list[Any], trans
         },
         AnalysisResult,
         transport,
+        analysis_competency_id=competency.id,
     )
     return validate_analysis(result, answer, competency.id)

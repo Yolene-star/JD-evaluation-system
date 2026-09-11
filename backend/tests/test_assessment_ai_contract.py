@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -203,6 +204,66 @@ def test_analyze_transport_receives_competency_and_evidence(monkeypatch) -> None
     analyze_answer(snapshot, snapshot.competencies[0], [{"id": "e1", "excerpt": "证据"}], [], "回答", transport)
     assert "系统设计" in captured["messages"][0]["content"]
     assert "证据" in captured["messages"][1]["content"]
+
+
+def test_analyze_accepts_llm_quality_judgment_without_internal_evidence_fields(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    monkeypatch.setattr("backend.app.services.assessment_ai.is_llm_analysis_enabled", lambda: True)
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+
+    def transport(_payload, **_kwargs):
+        content = json.dumps({
+            "answer_summary": "回答说明了本人负责系统设计并完成交付。",
+            "evidence": [{
+                "type": "DIRECT",
+                "excerpt": "我负责系统设计并完成交付",
+                "reason": "回答直接说明了本人行动和结果。",
+            }],
+            "evidence_sufficiency": "SUFFICIENT",
+            "needs_follow_up": False,
+            "follow_up_reason": "",
+            "follow_up_question": "",
+        }, ensure_ascii=False)
+        return {
+            "choices": [{"message": {"content": content}}]
+        }
+
+    result = analyze_answer(
+        snapshot,
+        snapshot.competencies[0],
+        [],
+        [],
+        "我负责系统设计并完成交付",
+        transport,
+    )
+
+    assert result.evidence_sufficiency == "SUFFICIENT"
+    assert result.needs_follow_up is False
+    assert result.evidence[0].competency_id == "c1"
+    assert result.evidence[0].type == "POSITIVE"
+    assert result.evidence[0].confidence > 0
+
+
+def test_analyze_uses_quality_judgment_even_when_llm_returns_no_evidence_items(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
+    monkeypatch.setattr("backend.app.services.assessment_ai.is_llm_analysis_enabled", lambda: True)
+    snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
+
+    def transport(_payload, **_kwargs):
+        return {"choices": [{"message": {"content": json.dumps({
+            "answer_summary": "回答较为具体，但缺少可验证结果。",
+            "evidence": [],
+            "evidence_sufficiency": "INSUFFICIENT",
+            "needs_follow_up": True,
+            "follow_up_reason": "缺少结果",
+            "follow_up_question": "请补充最终结果和影响。",
+        }, ensure_ascii=False)}}]}
+
+    result = analyze_answer(snapshot, snapshot.competencies[0], [], [], "我负责了系统设计", transport)
+
+    assert result.evidence == []
+    assert result.evidence_sufficiency == "INSUFFICIENT"
+    assert result.follow_up_question == "请补充最终结果和影响。"
 
 
 def test_missing_key_and_bad_provider_response_are_retryable(monkeypatch) -> None:
