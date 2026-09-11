@@ -187,6 +187,9 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 .assessment-tags span { border: 1px solid var(--border-strong); border-radius: 999px; padding: 5px 10px; font-size: .82rem; }
 .assessment-composer { display: grid; flex: 0 0 auto; gap: 8px; margin-top: 0; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: 0 -8px 20px rgb(23 60 59 / 6%); }
 .assessment-helper-messages { display: grid; gap: 6px; }
+.assessment-default-hint { margin: 0; color: var(--muted); font-size: .8rem; }
+.assessment-agent-message { margin: 0; padding: 9px 10px; border-left: 3px solid var(--primary); border-radius: 4px 10px 10px 4px; background: var(--surface-soft); line-height: 1.45; }
+.assessment-agent-message strong { display: block; margin-bottom: 3px; color: var(--muted); font-size: .72rem; }
 .assessment-composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .assessment-support, .assessment-rephrase { margin: 0; color: var(--muted); font-size: .88rem; line-height: 1.5; }
 .assessment-rephrase { padding: 9px 10px; border-left: 3px solid var(--border-strong); background: var(--surface-soft); color: var(--text); }
