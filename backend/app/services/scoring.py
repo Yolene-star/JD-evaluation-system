@@ -60,10 +60,12 @@ def score_competency(*, competency_id: str, status: str, rubric: dict, observati
     score = round(coverage * 10, 1)
     score = float(max(0.0, min(10.0, score)))
     confidence = max(0.0, min(1.0, (sum(float(_value(obs, "confidence", 0.0) or 0.0) for obs in observations) / len(observations) if observations else 0.0) * (1 - 0.25 * min(1, len(uncertain)))))
-    matched_ids = [str(_value(obs, "id")) for obs in positive]
+    explicit_matched = [str(value) for obs in positive for value in (_value(obs, "matched_indicator_ids", []) or [])]
+    matched_ids = explicit_matched or [str(_value(obs, "id")) for obs in positive]
     negative_ids = [str(_value(obs, "id")) for obs in negative]
-    missing_ids = [str(_value(obs, "id")) for obs in missing]
-    return CompetencyScore(competency_id, status, score, round(score / 10, 4), level, evidence_ids, matched_ids, negative_ids, missing_ids, round(confidence, 4), f"覆盖 {len(positive)}/{len(indicators)} 项指标")
+    explicit_missing = [str(value) for obs in observations for value in (_value(obs, "missing_indicator_ids", []) or [])]
+    missing_ids = explicit_missing or [indicator for indicator in indicators if indicator not in matched_ids]
+    return CompetencyScore(competency_id, status, score, round(score / 10, 4), level, evidence_ids, matched_ids, negative_ids, missing_ids, round(confidence, 4), f"覆盖 {len(matched_ids)}/{len(indicators)} 项指标")
 
 
 def score_evidence_package(package: dict, rubrics: dict[str, dict]) -> EvidencePackageScore:
