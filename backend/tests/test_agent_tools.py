@@ -42,22 +42,45 @@ def test_question_tool_forwards_agent_context_and_preserves_metadata() -> None:
 
 def test_question_tool_forwards_one_background_reference_without_changing_formal_target() -> None:
     captured: dict = {}
-    reference = ResumeReference(item_id="resume-project-1", item_type="project", prompt_hint="候选人背景提到 React 项目，请邀请其确认实际贡献。")
+    formal = {
+        "question_goal": "获取系统设计的岗位相关证据",
+        "expected_evidence": ["本人行动", "可验证结果"],
+        "indicator_ids": ["ind-1"],
+    }
+    reference = ResumeReference(
+        item_id="resume-project-1",
+        item_type="project",
+        prompt_hint="候选人背景提到 React 项目，请邀请其确认实际贡献。",
+    )
 
     def generate(snapshot, competencies, jd_evidence, transcript, transport=None, *, agent_context=None, resume_reference=None):
+        captured["agent_context"] = agent_context
         captured["resume_reference"] = resume_reference
         return GeneratedQuestion(
             content="请确认你在该项目中的系统设计贡献，并说明结果",
             covered_competency_ids=["c-1"],
             turn_type="MAIN_QUESTION",
-            evaluation_target="获取系统设计的岗位相关证据",
-            expected_evidence=["本人行动", "可验证结果"],
-            background_reference={"source_type": "BACKGROUND_ONLY", "item_id": "resume-project-1", "item_type": "project", "display_summary": "候选人背景提到 React 项目"},
+            evaluation_target=formal["question_goal"],
+            expected_evidence=formal["expected_evidence"],
+            background_reference={
+                "source_type": "BACKGROUND_ONLY",
+                "item_id": "resume-project-1",
+                "item_type": "project",
+                "display_summary": "候选人背景提到 React 项目",
+            },
         )
 
-    result = QuestionTool(generate_fn=generate).generate(snapshot=object(), competencies=[SimpleNamespace(id="c-1")], jd_evidence=[], transcript=[], agent_context={"formal_target": {"question_goal": "获取系统设计的岗位相关证据"}}, resume_reference=reference)
+    result = QuestionTool(generate_fn=generate).generate(
+        snapshot=object(),
+        competencies=[SimpleNamespace(id="c-1")],
+        jd_evidence=[],
+        transcript=[],
+        agent_context={"formal_target": formal},
+        resume_reference=reference,
+    )
+
     assert result.covered_competency_ids == ["c-1"]
-    assert result.evaluation_target == "获取系统设计的岗位相关证据"
+    assert result.evaluation_target == formal["question_goal"]
     assert result.background_reference["source_type"] == "BACKGROUND_ONLY"
     assert captured["resume_reference"] is reference
 
@@ -73,6 +96,17 @@ def test_question_tool_propagates_retryable_provider_failure() -> None:
             jd_evidence=[],
             transcript=[],
         )
+
+
+def test_question_tool_replaces_empty_provider_question() -> None:
+    def invalid(*_args, **_kwargs):
+        from pydantic import ValidationError
+        GeneratedQuestion(content="", covered_competency_ids=["c-1"])
+
+    result = QuestionTool(generate_fn=invalid).generate(
+        snapshot=object(), competencies=[SimpleNamespace(id="c-1", name="系统设计")], jd_evidence=[], transcript=[]
+    )
+    assert result.content
 
 
 def test_question_tool_builds_follow_up_from_validated_analysis() -> None:
