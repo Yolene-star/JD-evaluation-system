@@ -215,7 +215,10 @@ def apply_analysis(
         if sufficiency == CompetencyAssessmentEvidenceSufficiency.UNCERTAIN.value
         else CompetencyAssessmentEvidenceSufficiency.INSUFFICIENT
     )
-    if competency_assessment.follow_up_count < 2:
+    profile = getattr(assessment_session, "assessment_profile", None) or {}
+    depth = profile.get("assessment_depth", "STANDARD")
+    max_follow_ups = {"QUICK": 0, "STANDARD": 2, "DEEP": 3}.get(str(depth).upper(), 2)
+    if competency_assessment.follow_up_count < max_follow_ups:
         competency_assessment.follow_up_count += 1
         competency_assessment.status = CompetencyAssessmentStatus.FOLLOW_UP
         assessment_session.current_competency_id = competency_assessment.competency_id
