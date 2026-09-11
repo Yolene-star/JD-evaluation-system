@@ -64,6 +64,12 @@ export default function App() {
   const [messages, setMessages] = useState<ConversationMessage[]>([])
   const [chatSource, setChatSource] = useState<'llm' | 'llm-tool' | 'deterministic-tool' | 'demo-fallback' | 'llm-error' | 'command-preview'>('demo-fallback')
   useEffect(() => { apiFetch<typeof projects>('/api/projects').then(setProjects).catch(() => undefined) }, [])
+  useEffect(() => {
+    if (!showAssessment || showReport || assessmentSnapshot?.completion !== 'FULL' || !reportSessionId) return
+    setShowReport(true)
+    setReportTab('report')
+    void loadReport()
+  }, [assessmentSnapshot?.completion, reportSessionId, showAssessment, showReport])
   const loadConversation = useCallback(async (projectId: string, isCurrent: () => boolean = () => true) => {
     const [history, events] = await Promise.all([
       apiFetch<{ messages: Array<{ id: string; role: string; content: string }> }>(`/api/projects/${projectId}/chat/history`),
