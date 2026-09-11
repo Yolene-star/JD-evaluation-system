@@ -11,7 +11,7 @@ import { ThinkingIndicator } from './ThinkingIndicator'
 
 export function AssessmentTimeline({ snapshot, competencyNames }: { snapshot: AssessmentSnapshot; competencyNames: Record<string, string> }) {
   const persistedQuestionIds = new Set(snapshot.turns.filter(turn => turn.role === 'SYSTEM').map(turn => turn.id))
-  return <>
+  return <div className="assessment-history">
     {snapshot.turns.map(turn => turn.role === 'SYSTEM'
       ? <QuestionBubble key={turn.id} question={{
           id: turn.id,
@@ -21,7 +21,7 @@ export function AssessmentTimeline({ snapshot, competencyNames }: { snapshot: As
         }} competencyNames={competencyNames} />
       : <article className="assessment-answer" key={turn.id}><span>你的回答</span><p>{turn.content}</p></article>)}
     {snapshot.currentQuestion && !persistedQuestionIds.has(snapshot.currentQuestion.id) && <QuestionBubble question={snapshot.currentQuestion} competencyNames={competencyNames} />}
-  </>
+  </div>
 }
 
 export function AssessmentView({ projectId, onSnapshot, onSessionId }: { projectId: string; onSnapshot?: (snapshot: AssessmentSnapshot) => void; onSessionId?: (sessionId: string) => void }) {
