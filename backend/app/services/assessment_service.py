@@ -59,7 +59,25 @@ def _make_question(session: AssessmentSession, db: Session, target_ids: list[str
         prefix = "补充说明" if follow_up_target else "请描述一次与你目标岗位相关的实际项目经历"
         question = GeneratedQuestion(content=f"{prefix}，重点说明你在{competencies[0].name}中的具体做法、依据和结果。", covered_competency_ids=target_ids, turn_type="FOLLOW_UP" if follow_up_target else "MAIN_QUESTION")
     except InvalidAIResponse as exc:
-        raise AssessmentServiceError("AI_INVALID_RESPONSE", str(exc)) from exc
+        # The planner's target is deterministic; a provider schema mismatch
+        # must not block a session or create a second question on retry.
+        question = GeneratedQuestion(
+            content=f"请描述一次与你目标岗位相关的实际项目经历，重点说明你在{competencies[0].name}中的具体做法、依据和结果。",
+            covered_competency_ids=target_ids,
+            turn_type="FOLLOW_UP" if follow_up_target else "MAIN_QUESTION",
+        )
+    existing = db.scalars(
+        select(AssessmentTurn)
+        .where(
+            AssessmentTurn.session_id == session.id,
+            AssessmentTurn.role == AssessmentTurnRole.SYSTEM,
+            AssessmentTurn.turn_type == (AssessmentTurnType.FOLLOW_UP if follow_up_target else AssessmentTurnType.MAIN_QUESTION),
+            AssessmentTurn.content == question.content,
+        )
+        .order_by(AssessmentTurn.turn_index.desc())
+    ).first()
+    if existing is not None:
+        return _question_payload(existing) or {}
     turn = AssessmentTurn(session_id=session.id, competency_assessment_id=next(item.id for item in _items(db, session) if item.competency_id == target_ids[0]), turn_index=_turn_index(db, session), role=AssessmentTurnRole.SYSTEM, turn_type=AssessmentTurnType.FOLLOW_UP if follow_up_target else AssessmentTurnType.MAIN_QUESTION, content=question.content, covered_competency_ids=list(target_ids))
     db.add(turn)
     db.flush()

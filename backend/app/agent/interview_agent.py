@@ -257,7 +257,7 @@ class InterviewAgent:
                     },
                     resume_reference=resume_reference,
                 )
-            except RetryableAIError:
+            except (RetryableAIError, InvalidAIResponse):
                 question = GeneratedQuestion(
                     content=f"请描述一次与你目标岗位相关的实际项目经历，重点说明你在{competency.name}中的具体做法、依据和结果。",
                     covered_competency_ids=[target_id],
@@ -284,6 +284,25 @@ class InterviewAgent:
         target_id: str,
         question: GeneratedQuestion,
     ) -> dict[str, Any]:
+        existing = self.db.scalars(
+            select(AssessmentTurn)
+            .where(
+                AssessmentTurn.session_id == session.id,
+                AssessmentTurn.role == AssessmentTurnRole.SYSTEM,
+                AssessmentTurn.content == question.content,
+                AssessmentTurn.covered_competency_ids == list(question.covered_competency_ids),
+            )
+            .order_by(AssessmentTurn.turn_index.desc())
+        ).first()
+        if existing is not None:
+            return {
+                "id": existing.id,
+                "content": existing.content,
+                "turn_type": existing.turn_type,
+                "covered_competency_ids": list(existing.covered_competency_ids or []),
+                "follow_up_target_competency_id": target_id if existing.turn_type is AssessmentTurnType.FOLLOW_UP else None,
+                "background_reference": question.background_reference,
+            }
         target = self.db.scalar(
             select(CompetencyAssessment).where(
                 CompetencyAssessment.session_id == session.id,
