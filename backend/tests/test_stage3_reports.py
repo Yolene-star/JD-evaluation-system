@@ -54,6 +54,10 @@ def test_same_idempotency_key_returns_existing_report() -> None:
         second = generate_report(db, session.id, "ep-1", package, rubric.id, "key-1", narrative_adapter=lambda _: {"overview": "different"})
         assert second.id == first.id
         assert second.report_version == 1
+        assert first.assessment_session_id == session.id
+        assert first.model_version_id == session.model_version_id
+        assert first.evidence_package_id == "ep-1"
+        assert first.rubric_set_id == rubric.id
 
 
 def test_recalculation_creates_new_report_version() -> None:
