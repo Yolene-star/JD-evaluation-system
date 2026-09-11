@@ -131,7 +131,7 @@ def test_main_question_personalization_is_background_only_and_formal_target_is_f
     assert result.evaluation_target == formal["question_goal"]
 
 
-def test_main_question_rejects_resume_only_target_and_formal_target_mutation(monkeypatch) -> None:
+def test_main_question_rejects_resume_only_target(monkeypatch) -> None:
     monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
     snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
     reference = ResumeReference(item_id="r1", item_type="project", prompt_hint="候选人背景项目")
@@ -149,7 +149,7 @@ def test_main_question_rejects_competency_outside_snapshot(monkeypatch) -> None:
         generate_main_question(snapshot, [ConfirmedCompetency("other", "越权", "", 1.0, ())], [], [], lambda *_args, **_kwargs: {})
 
 
-def test_main_question_personalization_is_background_only_and_formal_target_is_frozen(monkeypatch) -> None:
+def test_main_question_freezes_formal_target_without_resume(monkeypatch) -> None:
     monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
     snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
     reference = ResumeReference(item_id="r1", item_type="project", prompt_hint="候选人背景提到 React 项目，请邀请其确认贡献。")
@@ -157,8 +157,9 @@ def test_main_question_personalization_is_background_only_and_formal_target_is_f
     def transport(payload, **_kwargs):
         return {"choices": [{"message": {"content": '{"content":"请确认项目中的系统设计贡献","covered_competency_ids":["c1"],"turn_type":"MAIN_QUESTION","evaluation_target":"评估 React","expected_evidence":[]}'}}]}
 
-    with pytest.raises(InvalidAIResponse):
-        generate_main_question(snapshot, list(snapshot.competencies), [], [], transport, agent_context={"formal_target": {"question_goal": "评估系统设计", "expected_evidence": ["结果"]}}, resume_reference=reference)
+    result = generate_main_question(snapshot, list(snapshot.competencies), [], [], transport, agent_context={"formal_target": {"question_goal": "评估系统设计", "expected_evidence": ["结果"]}}, resume_reference=reference)
+    assert result.evaluation_target == "评估系统设计"
+    assert result.expected_evidence == ["结果"]
 
 
 def test_main_question_rejects_fabricated_background_without_reference(monkeypatch) -> None:
@@ -187,7 +188,7 @@ def test_resume_hint_is_user_payload_only_not_system_prompt(monkeypatch) -> None
     assert "UNTRUSTED_MARKER" in captured["messages"][1]["content"]
 
 
-def test_main_question_rejects_mismatched_background_display_summary(monkeypatch) -> None:
+def test_main_question_normalizes_mismatched_background_display_summary(monkeypatch) -> None:
     monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: "test-key")
     snapshot = ConfirmedModelSnapshot("m1", "p1", "v1.0", (ConfirmedCompetency("c1", "系统设计", "", 1.0, ()),))
     reference = ResumeReference(item_id="r1", item_type="project", prompt_hint="供应链平台项目，负责系统设计与交付。")
@@ -195,8 +196,8 @@ def test_main_question_rejects_mismatched_background_display_summary(monkeypatch
     def transport(payload, **_kwargs):
         return {"choices": [{"message": {"content": '{"content":"请确认项目中的系统设计贡献","covered_competency_ids":["c1"],"turn_type":"MAIN_QUESTION","background_reference":{"source_type":"BACKGROUND_ONLY","item_id":"r1","item_type":"project","display_summary":"不一致的摘要"}}'}}]}
 
-    with pytest.raises(InvalidAIResponse):
-        generate_main_question(snapshot, list(snapshot.competencies), [], [], transport, resume_reference=reference)
+    result = generate_main_question(snapshot, list(snapshot.competencies), [], [], transport, resume_reference=reference)
+    assert result.background_reference["display_summary"] == reference.prompt_hint
 
 
 def test_analyze_transport_receives_competency_and_evidence(monkeypatch) -> None:

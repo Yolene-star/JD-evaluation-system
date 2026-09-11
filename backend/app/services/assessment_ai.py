@@ -277,16 +277,19 @@ def generate_main_question(
         raise InvalidAIResponse("AI 虚构了背景引用")
     formal_target = (agent_context or {}).get("formal_target") or {}
     if formal_target:
-        if result.evaluation_target != formal_target.get("question_goal"):
-            raise InvalidAIResponse("AI 修改了正式评估目标")
-        if result.expected_evidence != list(formal_target.get("expected_evidence", [])):
-            raise InvalidAIResponse("AI 修改了正式证据目标")
+        # The planner owns the formal target. Treat provider deviations as
+        # personalization/schema drift and overwrite them with the frozen
+        # program value instead of aborting the interview turn.
+        result = result.model_copy(update={
+            "evaluation_target": formal_target.get("question_goal"),
+            "expected_evidence": list(formal_target.get("expected_evidence", [])),
+        })
     if resume_reference is not None:
         reference = resume_reference.model_dump(mode="json") if hasattr(resume_reference, "model_dump") else resume_reference
         if result.background_reference is not None:
             expected_summary = str(reference.get("prompt_hint", ""))[:500]
             if result.background_reference.get("source_type") != "BACKGROUND_ONLY" or result.background_reference.get("item_id") != reference.get("item_id") or result.background_reference.get("item_type") != reference.get("item_type") or result.background_reference.get("display_summary") != expected_summary:
-                raise InvalidAIResponse("AI 修改或虚构了背景引用")
+                result = result.model_copy(update={"background_reference": {"source_type": "BACKGROUND_ONLY", "item_id": reference["item_id"], "item_type": reference["item_type"], "display_summary": expected_summary}})
         else:
             result = result.model_copy(update={"background_reference": {"source_type": "BACKGROUND_ONLY", "item_id": reference["item_id"], "item_type": reference["item_type"], "display_summary": reference.get("prompt_hint", "")[:500]}})
     return result
