@@ -9,6 +9,7 @@ from backend.app.models import (
     AssessmentSession,
     AssessmentSessionStatus,
     ModelVersion,
+    ModelSnapshot,
     Project,
     ReportNarrativeStatus,
     RubricSetStatus,
@@ -35,6 +36,7 @@ def _fixture(db):
     model = ModelVersion(project_id=project.id, version="v1", status="CONFIRMED")
     db.add(model)
     db.flush()
+    db.add(ModelSnapshot(model_version_id=model.id, version="v1", snapshot_json={"competencies": [{"id": "c1", "name": "系统设计", "weight": 1.0}]}))
     session = AssessmentSession(project_id=project.id, model_version_id=model.id, status=AssessmentSessionStatus.COMPLETED, completion=AssessmentCompletion.FULL)
     db.add(session)
     db.flush()
@@ -89,6 +91,9 @@ def test_report_includes_deterministic_profile_when_no_llm_adapter_is_available(
         assert report.narrative is not None
         assert report.narrative.overview
         assert report.narrative_status is ReportNarrativeStatus.READY
+        narrative_text = " ".join(item["text"] for item in report.narrative.weaknesses + report.narrative.strengths)
+        assert "系统设计" in narrative_text
+        assert "c1" not in narrative_text
 
 
 def test_evidence_package_merges_duplicate_competency_assessments() -> None:

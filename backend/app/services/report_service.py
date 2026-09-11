@@ -39,15 +39,16 @@ def _rubric_facts(rubric: RubricSet) -> dict[str, dict]:
     }
 
 
-def _deterministic_narrative(score: object) -> dict:
+def _deterministic_narrative(score: object, competency_names: dict[str, str] | None = None) -> dict:
+    competency_names = competency_names or {}
     evaluations = list(getattr(score, "evaluations", []) or [])
     scored = [item for item in evaluations if getattr(item, "score", None) is not None]
     strengths = [
-        {"text": f"{item.competency_id} 当前证据评分为 {item.score}/10。", "evidence_ids": list(item.evidence_ids or [])}
+        {"text": f"{competency_names.get(item.competency_id, '该能力')} 当前证据评分为 {item.score}/10。", "evidence_ids": list(item.evidence_ids or [])}
         for item in scored if float(item.score or 0) >= 7
     ]
     weaknesses = [
-        {"text": f"{item.competency_id} 仍需补充更具体的结果证据。", "evidence_ids": list(item.evidence_ids or [])}
+        {"text": f"{competency_names.get(item.competency_id, '该能力')} 仍需补充更具体的结果证据。", "evidence_ids": list(item.evidence_ids or [])}
         for item in evaluations if getattr(item, "score", None) is None or float(item.score or 0) < 7
     ]
     evidence_ids = sorted({str(evidence_id) for item in evaluations for evidence_id in (item.evidence_ids or [])})
@@ -119,7 +120,14 @@ def generate_report(
     facts = {"report_id": report.id, "match_score": report.match_score, "match_score_type": report.match_score_type, "evaluations": [evaluation.__dict__ for evaluation in score.evaluations], "evidence_ids": sorted(known_evidence)}
     if not invalid_competency:
         try:
-            narrative = generate_profile_narrative(facts, narrative_adapter) if narrative_adapter is not None else _deterministic_narrative(score)
+            competency_names = {item.competency_id: "该能力" for item in rubric.competencies}
+            try:
+                from .assessment_contracts import get_confirmed_model_snapshot
+                model_snapshot = get_confirmed_model_snapshot(db, session.project_id, session.model_version_id)
+                competency_names.update({item.id: item.name for item in model_snapshot.competencies})
+            except ValueError:
+                pass
+            narrative = generate_profile_narrative(facts, narrative_adapter) if narrative_adapter is not None else _deterministic_narrative(score, competency_names)
             report.narrative_status = ReportNarrativeStatus.READY
             db.add(ReportNarrative(report_id=report.id, overview=narrative["overview"], strengths=narrative["strengths"], weaknesses=narrative["weaknesses"], recommendations=narrative["recommendations"], cited_evidence_ids=narrative["cited_evidence_ids"]))
         except (NarrativeValidationError, Exception):
