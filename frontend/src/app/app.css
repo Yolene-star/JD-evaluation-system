@@ -180,6 +180,9 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 .assessment-answer { max-width: 84%; margin: 12px 0; margin-left: auto; padding: 12px 14px; border-radius: 14px 4px 14px 14px; background: #cde9e2; line-height: 1.6; }
 .assessment-answer span { display: block; margin-bottom: 4px; color: var(--muted); font-size: .72rem; font-weight: 700; }
 .assessment-answer p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.assessment-agent-notice { max-width: 84%; margin: 12px 0; padding: 12px 14px; border-left: 3px solid var(--primary); border-radius: 4px 12px 12px 4px; background: var(--surface-soft); color: var(--text); line-height: 1.6; }
+.assessment-agent-notice span { display: block; margin-bottom: 4px; color: var(--muted); font-size: .72rem; font-weight: 700; }
+.assessment-agent-notice p { margin: 0; }
 .assessment-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .assessment-tags span { border: 1px solid var(--border-strong); border-radius: 999px; padding: 5px 10px; font-size: .82rem; }
 .assessment-composer { display: grid; flex: 0 0 auto; gap: 8px; margin-top: 0; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: 0 -8px 20px rgb(23 60 59 / 6%); }

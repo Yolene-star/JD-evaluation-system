@@ -10,9 +10,13 @@ import { RetryNotice } from './RetryNotice'
 import { ThinkingIndicator } from './ThinkingIndicator'
 
 export function AssessmentTimeline({ snapshot, competencyNames }: { snapshot: AssessmentSnapshot; competencyNames: Record<string, string> }) {
-  const persistedQuestionIds = new Set(snapshot.turns.filter(turn => turn.role === 'SYSTEM').map(turn => turn.id))
+  const seen = new Set<string>()
+  const turns = snapshot.turns.filter(turn => { const key = `${turn.role}:${turn.content}`; if (seen.has(key)) return false; seen.add(key); return true })
+  const persistedQuestionIds = new Set(turns.filter(turn => turn.role === 'SYSTEM').map(turn => turn.id))
   return <div className="assessment-history">
-    {snapshot.turns.map(turn => turn.role === 'SYSTEM'
+    {turns.map(turn => turn.role === 'SYSTEM' && turn.type === 'ANSWER'
+      ? <article className="assessment-agent-notice" key={turn.id}><span>Agent</span><p>{turn.content}</p></article>
+      : turn.role === 'SYSTEM'
       ? <QuestionBubble key={turn.id} question={{
           id: turn.id,
           content: turn.content,
@@ -25,13 +29,13 @@ export function AssessmentTimeline({ snapshot, competencyNames }: { snapshot: As
 }
 
 export function AssessmentView({ projectId, onSnapshot, onSessionId }: { projectId: string; onSnapshot?: (snapshot: AssessmentSnapshot) => void; onSessionId?: (sessionId: string) => void }) {
-  const [sessionId, setSessionId] = useState<string>(); const [snapshot, setSnapshot] = useState<AssessmentSnapshot>(); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const createdFor = useState<{ id?: string }>({})[0]
+  const [sessionId, setSessionId] = useState<string>(); const [snapshot, setSnapshot] = useState<AssessmentSnapshot>(); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [assistantNotices, setAssistantNotices] = useState<string[]>([]); const createdFor = useState<{ id?: string }>({})[0]
   const [resume, setResume] = useState<ResumeContextSummary>(); const [resumeReady, setResumeReady] = useState(false); const [useResume, setUseResume] = useState(false)
   const refresh = async (id = sessionId) => { if (!id) return; const next = await assessmentApi.snapshot<AssessmentSnapshot>(id); setSnapshot(next); onSnapshot?.(next) }
   const create = async (withResume = useResume) => { setBusy(true); setError(''); try { const result = await assessmentApi.create(projectId, undefined, withResume) as { id?: string; session_id?: string }; const id = result.id ?? result.session_id; if (!id) throw new Error('未返回测评会话'); setSessionId(id); onSessionId?.(id); await refresh(id) } catch (cause) { setError(cause instanceof Error ? cause.message : '创建测评失败') } finally { setBusy(false) } }
   useEffect(() => { if (createdFor.id === projectId) return; createdFor.id = projectId; setSessionId(undefined); setSnapshot(undefined); onSessionId?.(''); setResumeReady(false); resumeApi.current(projectId).then(value => { setResume(value); setUseResume(true) }).catch(() => { setResume(undefined); setUseResume(false) }).finally(() => setResumeReady(true)) }, [projectId])
   const start = async () => { if (!sessionId) return; setBusy(true); try { await assessmentApi.start(sessionId); await refresh() } finally { setBusy(false) } }
-  const submit = async ({ content, idempotencyKey }: { content: string; idempotencyKey: string }) => { if (!sessionId) return false; setBusy(true); setError(''); try { const next = await assessmentApi.submit<AssessmentSnapshot>(sessionId, content, idempotencyKey); setSnapshot(next); onSnapshot?.(next); return true } catch (cause) { setError(cause instanceof Error ? cause.message : '提交失败'); return false } finally { setBusy(false) } }
+  const submit = async ({ content, idempotencyKey }: { content: string; idempotencyKey: string }) => { if (!sessionId) return false; setBusy(true); setError(''); try { const next = await assessmentApi.submit<AssessmentSnapshot>(sessionId, content, idempotencyKey); setSnapshot(next); onSnapshot?.(next); setAssistantNotices(items => [...items, /我没有|不知道|不清楚|卡住|紧张/.test(content) ? '收到，先不用紧张。你可以从一个很小的具体例子开始，我们再一步一步补充。' : '收到，我先记录这段回答，再继续核对具体做法、依据和结果。']); return true } catch (cause) { setError(cause instanceof Error ? cause.message : '提交失败'); return false } finally { setBusy(false) } }
   const mutate = async (action: 'pause' | 'resume' | 'finish') => { if (!sessionId) return; setBusy(true); try { await assessmentApi[action](sessionId); await refresh() } finally { setBusy(false) } }
   if (error) return <div role="alert" className="error">{error}<button onClick={() => void create()}>重试创建</button></div>
   if (!snapshot) {
@@ -49,5 +53,6 @@ export function AssessmentView({ projectId, onSnapshot, onSessionId }: { project
   const names = Object.fromEntries(snapshot.competencies.map(item => [item.competencyId, item.name]))
   if (snapshot.status === 'READY') return <AssessmentIntroCard totalCount={snapshot.competencies.length} onStart={start} />
   const retry = async () => { if (!sessionId) return; setBusy(true); try { await assessmentApi.retry(sessionId, crypto.randomUUID()); await refresh() } finally { setBusy(false) } }
-  return <div className="assessment-view"><AssessmentTimeline snapshot={snapshot} competencyNames={names} />{snapshot.retryable && <RetryNotice message="分析暂时失败，已保留你的回答。你可以先休息一下，准备好后再重试。" onRetry={retry} />}{snapshot.evidenceGroups && <EvidenceInlineCard groups={snapshot.evidenceGroups} />}{snapshot.completion !== 'NONE' && <AssessmentCompletionCard completion={snapshot.completion} completedCount={snapshot.competencies.filter(c => c.status === 'SUFFICIENT' || c.status === 'EXHAUSTED').length} totalCount={snapshot.competencies.length} incompleteNames={snapshot.competencies.filter(c => c.status === 'INCOMPLETE').map(c => c.name)} />}{snapshot.status === 'IN_PROGRESS' && <AnswerComposer disabled={busy} question={snapshot.currentQuestion?.content} onSubmit={submit} />}</div>
+  const displaySnapshot = assistantNotices.length ? { ...snapshot, turns: [...snapshot.turns, ...assistantNotices.map((content, index) => ({ id: `assistant-notice-${index}-${content}`, role: 'SYSTEM' as const, type: 'ANSWER' as const, content, coveredCompetencyIds: [] }))] } : snapshot
+  return <div className="assessment-view"><AssessmentTimeline snapshot={displaySnapshot} competencyNames={names} />{snapshot.retryable && <RetryNotice message="分析暂时失败，已保留你的回答。你可以先休息一下，准备好后再重试。" onRetry={retry} />}{snapshot.evidenceGroups && <EvidenceInlineCard groups={snapshot.evidenceGroups} />}{snapshot.completion !== 'NONE' && <AssessmentCompletionCard completion={snapshot.completion} completedCount={snapshot.competencies.filter(c => c.status === 'SUFFICIENT' || c.status === 'EXHAUSTED').length} totalCount={snapshot.competencies.length} incompleteNames={snapshot.competencies.filter(c => c.status === 'INCOMPLETE').map(c => c.name)} />}{snapshot.status === 'IN_PROGRESS' && <AnswerComposer disabled={busy} question={snapshot.currentQuestion?.content} onHelper={message => setAssistantNotices(items => [...items, message])} onSubmit={submit} />}</div>
 }
