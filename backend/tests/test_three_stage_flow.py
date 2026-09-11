@@ -47,3 +47,20 @@ def test_three_stage_flow_prints_results(monkeypatch, capsys) -> None:
     assert "阶段一｜模型：CONFIRMED" in output
     assert "阶段二｜证据包：PARTIAL" in output
     assert "阶段三｜报告：v1" in output
+
+
+def test_end_to_end_profile_is_frozen_and_evidence_remains_answer_grounded(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: None)
+    with TestClient(app) as client:
+        project = client.post("/api/projects", json={"name": "端到端契约"}).json()
+        client.post(f"/api/projects/{project['id']}/jds/text", json={"title": "工程师", "text": "负责 React 开发"})
+        client.post(f"/api/projects/{project['id']}/analysis/run")
+        model = client.post(f"/api/projects/{project['id']}/aggregate").json()
+        assert client.post(f"/api/models/{model['id']}/confirm").status_code == 201
+        session = client.post(f"/api/projects/{project['id']}/assessments", json={"profile": {"assessment_depth": "QUICK"}}).json()
+        assert session["assessment_profile"]["assessment_depth"] == "QUICK"
+        started = client.post(f"/api/assessments/{session['id']}/start").json()
+        answer = "我负责 React 页面开发并将加载时间降低了 30%。"
+        submitted = client.post(f"/api/assessments/{session['id']}/turns", json={"content": answer, "idempotency_key": "e2e-profile-1"})
+        assert submitted.status_code == 200
+        assert all(str(item) in answer for group in submitted.json().get("evidence_groups", []) for item in group.get("observations", []))

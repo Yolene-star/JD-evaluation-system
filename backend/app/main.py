@@ -23,8 +23,13 @@ def create_app() -> FastAPI:
             if "description" not in columns:
                 with engine.begin() as connection:
                     connection.execute(text("ALTER TABLE competencies ADD COLUMN description TEXT NOT NULL DEFAULT ''"))
+            model_columns = {column["name"] for column in inspect(engine).get_columns("model_versions")}
+            if "draft_json" not in model_columns:
+                with engine.begin() as connection:
+                    connection.execute(text("ALTER TABLE model_versions ADD COLUMN draft_json JSON NOT NULL DEFAULT '{}'"))
             assessment_columns = {
                 "assessment_sessions": {
+                    "assessment_profile": "JSON NOT NULL DEFAULT '{}'",
                     "completion": "TEXT NOT NULL DEFAULT 'NONE'",
                     "started_at": "DATETIME",
                     "paused_at": "DATETIME",
