@@ -14,4 +14,6 @@ def build_question_prompt(competencies: list[Any], jd_evidence: list[Any], trans
 
 
 def build_analysis_prompt(competency: Any, jd_evidence: list[Any], transcript: list[Any]) -> str:
-    return f"只分析能力项“{competency.name}”，首要任务是根据本轮用户回答判断回答质量：是否具体、是否说明本人行动、判断依据、结果，以及是否足以支持该能力。请只返回合法 json 对象。evidence 只是可选的回答片段摘要，不是判断能否完成的前置条件；即使无法提取片段，也必须先返回 evidence_sufficiency、needs_follow_up 和 follow_up_question。只能引用当前能力项；若提供 evidence，excerpt 必须逐字来自本轮用户回答，绝不能引用简历或其他背景文本。简历仅用于发现需要澄清的差异，不得作为正式证据、不得提高充分性或评分。若回答与背景信息不一致，输出 evidence_sufficiency=UNCERTAIN、needs_follow_up=true，所有相关证据 type=UNCERTAIN，并使用中性澄清问题，不得出现“造假”“不诚信”等定性。不要计算正式分数。字段：answer_summary、evidence（可为空）、evidence_sufficiency、needs_follow_up、follow_up_reason、follow_up_question。"
+    indicators = list(getattr(competency, "indicators", ()) or ())
+    requirements = list(getattr(competency, "evidence_requirements", ()) or ())
+    return f"只分析能力项“{competency.name}”。评价指标：{indicators}。证据要求：{requirements}。请根据本轮用户回答判断回答质量，并分别列出命中的指标、满足的证据要求和仍缺失的证据要求；列表只能使用输入中的原文。evidence 可为空，若提供 excerpt 必须逐字来自本轮回答，不能引用简历或背景。输出合法 JSON：answer_summary、evidence、matched_indicators、matched_evidence_requirements、missing_evidence_requirements、evidence_sufficiency、needs_follow_up、follow_up_reason、follow_up_question。简历不得作为正式证据、充分性或评分依据；背景冲突只能标记 UNCERTAIN 并中性追问。"

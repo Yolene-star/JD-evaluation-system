@@ -41,6 +41,9 @@ class AnalysisResult(BaseModel):
     needs_follow_up: bool
     follow_up_reason: str = ""
     follow_up_question: str = ""
+    matched_indicators: list[str] = Field(default_factory=list)
+    matched_evidence_requirements: list[str] = Field(default_factory=list)
+    missing_evidence_requirements: list[str] = Field(default_factory=list)
 
     @field_validator("evidence_sufficiency")
     @classmethod
