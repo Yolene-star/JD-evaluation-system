@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { assessmentApi, resumeApi, type ResumeContextSummary } from '../lib/api'
 import type { AssessmentSnapshot } from '../types/assessment'
 import { AssessmentIntroCard } from './AssessmentIntroCard'
@@ -10,8 +10,10 @@ import { RetryNotice } from './RetryNotice'
 import { ThinkingIndicator } from './ThinkingIndicator'
 
 export function AssessmentTimeline({ snapshot, competencyNames }: { snapshot: AssessmentSnapshot; competencyNames: Record<string, string> }) {
+  const endRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }) }, [snapshot.turns.length, snapshot.currentQuestion?.id])
   const seen = new Set<string>()
-  const turns = snapshot.turns.filter(turn => { const key = `${turn.role}:${turn.content}`; if (seen.has(key)) return false; seen.add(key); return true })
+  const turns = snapshot.turns.filter(turn => { if (turn.role !== 'SYSTEM') return true; const key = `${turn.role}:${turn.content}`; if (seen.has(key)) return false; seen.add(key); return true })
   const persistedQuestionIds = new Set(turns.filter(turn => turn.role === 'SYSTEM').map(turn => turn.id))
   return <div className="assessment-history">
     {turns.map(turn => turn.role === 'SYSTEM' && turn.type === 'ANSWER'
@@ -25,6 +27,7 @@ export function AssessmentTimeline({ snapshot, competencyNames }: { snapshot: As
         }} competencyNames={competencyNames} />
       : <article className="assessment-answer" key={turn.id}><span>你的回答</span><p>{turn.content}</p></article>)}
     {snapshot.currentQuestion && !persistedQuestionIds.has(snapshot.currentQuestion.id) && <QuestionBubble question={snapshot.currentQuestion} competencyNames={competencyNames} />}
+    <div ref={endRef} aria-hidden="true" />
   </div>
 }
 
