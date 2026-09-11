@@ -9,6 +9,21 @@ import { QuestionBubble } from './QuestionBubble'
 import { RetryNotice } from './RetryNotice'
 import { ThinkingIndicator } from './ThinkingIndicator'
 
+export function AssessmentTimeline({ snapshot, competencyNames }: { snapshot: AssessmentSnapshot; competencyNames: Record<string, string> }) {
+  const persistedQuestionIds = new Set(snapshot.turns.filter(turn => turn.role === 'SYSTEM').map(turn => turn.id))
+  return <>
+    {snapshot.turns.map(turn => turn.role === 'SYSTEM'
+      ? <QuestionBubble key={turn.id} question={{
+          id: turn.id,
+          content: turn.content,
+          turnType: turn.type === 'FOLLOW_UP' ? 'FOLLOW_UP' : 'MAIN_QUESTION',
+          coveredCompetencyIds: turn.coveredCompetencyIds ?? [],
+        }} competencyNames={competencyNames} />
+      : <article className="assessment-answer" key={turn.id}><span>你的回答</span><p>{turn.content}</p></article>)}
+    {snapshot.currentQuestion && !persistedQuestionIds.has(snapshot.currentQuestion.id) && <QuestionBubble question={snapshot.currentQuestion} competencyNames={competencyNames} />}
+  </>
+}
+
 export function AssessmentView({ projectId, onSnapshot, onSessionId }: { projectId: string; onSnapshot?: (snapshot: AssessmentSnapshot) => void; onSessionId?: (sessionId: string) => void }) {
   const [sessionId, setSessionId] = useState<string>(); const [snapshot, setSnapshot] = useState<AssessmentSnapshot>(); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const createdFor = useState<{ id?: string }>({})[0]
   const [resume, setResume] = useState<ResumeContextSummary>(); const [resumeReady, setResumeReady] = useState(false); const [useResume, setUseResume] = useState(false)
@@ -34,5 +49,5 @@ export function AssessmentView({ projectId, onSnapshot, onSessionId }: { project
   const names = Object.fromEntries(snapshot.competencies.map(item => [item.competencyId, item.name]))
   if (snapshot.status === 'READY') return <AssessmentIntroCard totalCount={snapshot.competencies.length} onStart={start} />
   const retry = async () => { if (!sessionId) return; setBusy(true); try { await assessmentApi.retry(sessionId, crypto.randomUUID()); await refresh() } finally { setBusy(false) } }
-  return <div className="assessment-view">{snapshot.currentQuestion && <QuestionBubble question={snapshot.currentQuestion} competencyNames={names} />}{snapshot.turns.filter(turn => turn.role === 'USER').map(turn => <article className="assessment-answer" key={turn.id}><span>你的回答</span><p>{turn.content}</p></article>)}{snapshot.retryable && <RetryNotice message="分析暂时失败，已保留你的回答。你可以先休息一下，准备好后再重试。" onRetry={retry} />}{snapshot.evidenceGroups && <EvidenceInlineCard groups={snapshot.evidenceGroups} />}{snapshot.completion !== 'NONE' && <AssessmentCompletionCard completion={snapshot.completion} completedCount={snapshot.competencies.filter(c => c.status === 'SUFFICIENT' || c.status === 'EXHAUSTED').length} totalCount={snapshot.competencies.length} incompleteNames={snapshot.competencies.filter(c => c.status === 'INCOMPLETE').map(c => c.name)} />}{snapshot.status === 'IN_PROGRESS' && <AnswerComposer disabled={busy} question={snapshot.currentQuestion?.content} onSubmit={submit} />}</div>
+  return <div className="assessment-view"><AssessmentTimeline snapshot={snapshot} competencyNames={names} />{snapshot.retryable && <RetryNotice message="分析暂时失败，已保留你的回答。你可以先休息一下，准备好后再重试。" onRetry={retry} />}{snapshot.evidenceGroups && <EvidenceInlineCard groups={snapshot.evidenceGroups} />}{snapshot.completion !== 'NONE' && <AssessmentCompletionCard completion={snapshot.completion} completedCount={snapshot.competencies.filter(c => c.status === 'SUFFICIENT' || c.status === 'EXHAUSTED').length} totalCount={snapshot.competencies.length} incompleteNames={snapshot.competencies.filter(c => c.status === 'INCOMPLETE').map(c => c.name)} />}{snapshot.status === 'IN_PROGRESS' && <AnswerComposer disabled={busy} question={snapshot.currentQuestion?.content} onSubmit={submit} />}</div>
 }
