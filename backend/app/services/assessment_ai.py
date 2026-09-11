@@ -258,7 +258,7 @@ def generate_main_question(
         raise InvalidAIResponse("题目包含确认快照之外的能力项")
     competency_payload = [asdict(item) if is_dataclass(item) else dict(item) for item in competencies]
     result = _call_structured(
-        build_question_prompt(competencies, jd_evidence, transcript, resume_reference=resume_reference),
+        build_question_prompt(competencies, jd_evidence, transcript, resume_reference=resume_reference, agent_context=agent_context),
         {
             "model_version_id": snapshot.model_version_id,
             "competencies": competency_payload,
