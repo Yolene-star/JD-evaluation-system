@@ -17,6 +17,12 @@ from backend.app.services.assessment_ai import (
 )
 from backend.app.services.assessment_contracts import ConfirmedCompetency, ConfirmedModelSnapshot
 from backend.app.agent.schemas import ResumeReference
+from backend.app.services.assessment_prompts import build_analysis_prompt
+
+
+def test_analysis_prompt_explicitly_requests_json_for_provider_contract() -> None:
+    prompt = build_analysis_prompt(ConfirmedCompetency("c1", "系统设计", "", 1.0, ()), [], [])
+    assert "json" in prompt.lower()
 
 
 def valid_result(**changes: object) -> AnalysisResult:

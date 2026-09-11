@@ -32,3 +32,16 @@ def test_load_local_env_accepts_utf8_bom(tmp_path, monkeypatch) -> None:
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     load_local_env(env_file)
     assert os.environ["DEEPSEEK_API_KEY"] == "bom-secret"
+import os
+
+from backend.app.config import load_local_env
+
+
+def test_load_local_env_fills_empty_environment_values(tmp_path, monkeypatch) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text("HTTPS_PROXY=http://127.0.0.1:7890\n", encoding="utf-8")
+    monkeypatch.setenv("HTTPS_PROXY", "")
+
+    load_local_env(env_file)
+
+    assert os.environ["HTTPS_PROXY"] == "http://127.0.0.1:7890"

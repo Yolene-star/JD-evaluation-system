@@ -14,8 +14,8 @@ def load_local_env(path: Path) -> None:
         key, value = line.split("=", 1)
         key = key.strip()
         value = value.strip().strip('"').strip("'")
-        if key:
-            os.environ.setdefault(key, value)
+        if key and (not os.environ.get(key, "").strip() or key not in os.environ):
+            os.environ[key] = value
 
 
 LOCAL_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
