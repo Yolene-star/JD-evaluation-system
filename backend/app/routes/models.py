@@ -6,6 +6,7 @@ from ..db import get_db
 from ..models import Competency, JobDescription, ModelVersion, ModelVersionStatus, Project, ModelSnapshot, ConflictDecisionRecord
 from ..services.aggregation import aggregate_competencies, detect_conflicts
 from ..services.audit import record_event
+from ..services.weights import apply_exact_weight
 
 router = APIRouter(tags=["models"])
 
@@ -59,12 +60,8 @@ def update_competency(competency_id: str, payload: dict, db: Session = Depends(g
             raise HTTPException(status_code=422, detail="权重必须是数字")
         if not 0 <= weight <= 1:
             raise HTTPException(status_code=422, detail="权重必须在 0 到 1 之间")
-        competency.weight = weight
         siblings = db.scalars(select(Competency).where(Competency.jd_id == jd.id)).all()
-        total = sum(max(0.0, float(item.weight or 0.0)) for item in siblings)
-        if total:
-            for item in siblings:
-                item.weight = max(0.0, float(item.weight or 0.0)) / total
+        apply_exact_weight(siblings, competency, weight)
     record_event(db, jd.project_id, "COMPETENCY_UPDATED", {"competency_id": competency.id, "name": competency.name, "weight": competency.weight})
     db.commit()
     db.refresh(competency)
@@ -98,13 +95,14 @@ def aggregate_model(project_id: str, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(status_code=404, detail="项目不存在")
     jds = db.scalars(select(JobDescription).where(JobDescription.project_id == project_id, JobDescription.participates_in_model.is_(True))).all()
     items = [item for jd in jds for item in [{"name": c.name, "jd_id": jd.id, "evidence_ids": c.evidence_ids, "weight": c.weight} for c in db.scalars(select(Competency).where(Competency.jd_id == jd.id)).all()]]
-    model = ModelVersion(project_id=project_id, version="draft", status=ModelVersionStatus.DRAFT)
+    rows = aggregate_competencies(items)
+    conflicts = detect_conflicts(items)
+    model = ModelVersion(project_id=project_id, version="draft", status=ModelVersionStatus.DRAFT, draft_json={"competencies": rows, "conflicts": conflicts, "manual_overrides": False})
     db.add(model)
     db.flush()
-    rows = aggregate_competencies(items)
     record_event(db, project_id, "MODEL_AGGREGATED", {"model_id": model.id, "competency_count": len(rows)})
     db.commit()
-    conflicts = unresolved(model.id, detect_conflicts(items), db)
+    conflicts = unresolved(model.id, conflicts, db)
     return {"id": model.id, "project_id": project_id, "version": model.version, "status": model.status, "competencies": rows, "conflict_count": len(conflicts), "conflicts": conflicts}
 
 
@@ -113,6 +111,10 @@ def get_model(model_id: str, db: Session = Depends(get_db)) -> dict:
     model = db.get(ModelVersion, model_id)
     if not model:
         raise HTTPException(status_code=404, detail="模型不存在")
+    draft = model.draft_json or {}
+    if draft.get("competencies") is not None and (draft.get("manual_overrides") or model.status == ModelVersionStatus.CONFIRMED):
+        conflicts = unresolved(model.id, draft.get("conflicts", []), db)
+        return {"id": model.id, "project_id": model.project_id, "version": model.version, "status": model.status, "competencies": draft.get("competencies", []), "conflict_count": len(conflicts), "conflicts": conflicts}
     jds = db.scalars(select(JobDescription).where(JobDescription.project_id == model.project_id, JobDescription.participates_in_model.is_(True))).all()
     items = [item for jd in jds for item in [{"name": c.name, "jd_id": jd.id, "evidence_ids": c.evidence_ids, "weight": c.weight} for c in db.scalars(select(Competency).where(Competency.jd_id == jd.id)).all()]]
     conflicts = unresolved(model.id, detect_conflicts(items), db)

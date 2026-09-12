@@ -14,6 +14,9 @@ def snapshot_payload(model_id: str, db: Session) -> dict:
     model = db.get(ModelVersion, model_id)
     if not model:
         raise HTTPException(status_code=404, detail="模型不存在")
+    draft = model.draft_json or {}
+    if draft.get("competencies") is not None and draft.get("manual_overrides"):
+        return {"model_id": model.id, "project_id": model.project_id, "competencies": draft.get("competencies", []), "conflict_count": len(draft.get("conflicts", []))}
     jds = db.scalars(select(JobDescription).where(JobDescription.project_id == model.project_id, JobDescription.participates_in_model.is_(True))).all()
     items = [{"name": c.name, "jd_id": jd.id, "evidence_ids": c.evidence_ids} for jd in jds for c in db.scalars(select(Competency).where(Competency.jd_id == jd.id)).all()]
     return {"model_id": model.id, "project_id": model.project_id, "competencies": aggregate_competencies(items), "conflict_count": 0}

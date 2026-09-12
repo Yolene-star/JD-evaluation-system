@@ -11,6 +11,7 @@ export function formatSystemNotice(action: string, rawPayload: string): string {
   const labels: Record<string, string> = {
     JD_ADDED: title ? `已添加 JD：${title}` : '已添加 JD',
     JD_UPDATED: title ? `已更新 JD：${title}` : '已更新 JD 信息',
+    JD_REMOVED: title ? `已将 JD 移出当前模型：${title}` : '已将 JD 移出当前模型',
     JD_EXTRACTOR_SELECTED: `已识别网页提取模块：${adapter}`,
     JD_READD: '已将 JD 重新加入当前模型',
     ANALYSIS_COMPLETED: 'JD 解析完成，模型数据已刷新',
@@ -18,6 +19,7 @@ export function formatSystemNotice(action: string, rawPayload: string): string {
     MODEL_CONFIRMED: '模型已确认并冻结',
     COMPETENCY_CREATED: title ? `已新增能力：${title}` : '已新增能力项',
     COMPETENCY_UPDATED: title ? `已更新能力：${title}` : '已更新能力项',
+    COMPETENCY_WEIGHT_UPDATED: title ? `已更新能力权重：${title}` : '已更新能力权重',
     COMPETENCY_DELETED: title ? `已删除能力：${title}` : '已删除能力项',
     CONFLICT_RESOLVED: '能力冲突已处理',
   }
