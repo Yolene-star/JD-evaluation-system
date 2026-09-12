@@ -26,6 +26,15 @@ describe('stage three report UI contracts', () => {
     expect(html).toContain('能力模型数据表')
   })
 
+  it('renders radar and bar charts for scored competencies', () => {
+    const html = renderToStaticMarkup(<ReportView report={{ ...report, evaluations: [{ ...report.evaluations[0], score: 8 }, { ...report.evaluations[1], score: 5, status: 'SCORED' }] }} />)
+    expect(html).toContain('能力雷达图')
+    expect(html).toContain('能力得分条状图')
+    expect(html).toContain('<svg')
+    expect(html).toContain('系统设计')
+    expect(html).toContain('沟通')
+  })
+
   it('provides a stage-three workbench and evidence-bound agent consultation', () => {
     const html = renderToStaticMarkup(<><ReportWorkbench report={report} /><ReportChat reportId="r1" messages={[]} onSend={() => undefined} /></>)
     expect(html).toContain('阶段三报告工作台')

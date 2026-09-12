@@ -165,7 +165,7 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 }
 
 @media (max-width: 760px) {
-  .report-visual-grid, .profile-columns { grid-template-columns: 1fr; }
+  .report-visual-grid, .report-chart-grid, .profile-columns { grid-template-columns: 1fr; }
   .score-ring { width: 130px; height: 130px; }
   .score-ring > div { width: 98px; height: 98px; }
 }
@@ -220,6 +220,19 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 .assessment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .report-view { display: grid; gap: 14px; overflow: auto; }
 .report-visual-grid { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(0, 1.3fr); gap: 14px; }
+.report-chart-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.report-chart-card { min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.report-chart-card h4 { margin: 0 0 10px; }
+.radar-chart-wrap { display: grid; place-items: center; min-height: 250px; }
+.radar-chart-wrap svg { width: 100%; max-width: 420px; height: auto; overflow: visible; }
+.radar-chart-wrap text { fill: var(--text); font-size: 11px; }
+.chart-note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.45; text-align: center; }
+.score-bars { display: grid; gap: 14px; padding-top: 8px; }
+.score-bar { display: grid; gap: 6px; }
+.score-bar > div:first-child { display: flex; justify-content: space-between; gap: 8px; font-size: .88rem; }
+.score-bar span { color: var(--muted); white-space: nowrap; }
+.score-bar-track { height: 10px; overflow: hidden; border-radius: 8px; background: #e5efeb; }
+.score-bar-track i { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
 .report-score-card, .report-model-card { padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
 .report-score-card h4, .report-model-card h4 { margin: 0 0 12px; }
 .score-ring { display: grid; place-items: center; width: 150px; height: 150px; margin: 8px auto 14px; border-radius: 50%; background: conic-gradient(var(--primary) var(--score), #e5efeb 0); }
