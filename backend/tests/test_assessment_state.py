@@ -165,6 +165,16 @@ def test_composite_targets_advance_independently(snapshot, db_and_session) -> No
     assert select_question_scope(snapshot, [first, second, third]) == ["c-2", "c-3"]
 
 
+def test_apply_analysis_rejects_terminal_competency_without_mutating_state(snapshot, db_and_session) -> None:
+    db, assessment_session = db_and_session
+    start_session(db, assessment_session, snapshot)
+    first = _assessments(db, assessment_session)[0]
+    apply_analysis(assessment_session, first, sufficient_analysis())
+    with pytest.raises(InvalidAssessmentTransition, match="terminal competency"):
+        apply_analysis(assessment_session, first, sufficient_analysis())
+    assert assessment_session.current_competency_id == "c-2"
+
+
 def test_events_are_append_only_json_records_in_write_order(db_and_session) -> None:
     db, assessment_session = db_and_session
     first = record_event(db, assessment_session.id, "ASSESSMENT_STARTED", {"source": "test"})

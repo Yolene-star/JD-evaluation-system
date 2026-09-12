@@ -32,6 +32,27 @@ def test_create_start_and_duplicate_answer_is_idempotent(monkeypatch) -> None:
         assert second.json() == first.json()
 
 
+def test_stale_second_submit_does_not_reanalyze_terminal_competency(monkeypatch) -> None:
+    monkeypatch.setattr("backend.app.services.assessment_ai.get_llm_api_key", lambda: None)
+    with TestClient(app) as client:
+        project = _confirmed_project(client)
+        session = client.post(f"/api/projects/{project['id']}/assessments").json()
+        client.post(f"/api/assessments/{session['id']}/start")
+        first = client.post(
+            f"/api/assessments/{session['id']}/turns",
+            json={"content": "我不会", "idempotency_key": "stale-1"},
+        )
+        assert first.status_code == 200
+        # A second click can arrive before the UI has replaced the question.
+        # It must be a harmless no-op, never a terminal-competency error.
+        second = client.post(
+            f"/api/assessments/{session['id']}/turns",
+            json={"content": "我不会", "idempotency_key": "stale-2"},
+        )
+        assert second.status_code == 200
+        assert "terminal competency" not in second.text
+
+
 def test_create_ready_snapshot_includes_confirmed_competency_names_and_progress() -> None:
     with TestClient(app) as client:
         project = _confirmed_project(client)

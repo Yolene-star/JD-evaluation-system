@@ -24,8 +24,10 @@ export type CompetencyEvaluation = {
   evidenceIds?: string[]
   evidence?: ReportEvidence[]
   matchedIndicatorIds?: string[]
+  matchedIndicators?: string[]
   negativeEvidenceIds?: string[]
   missingIndicatorIds?: string[]
+  missingIndicators?: string[]
   weight?: number
 }
 

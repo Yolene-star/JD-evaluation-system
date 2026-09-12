@@ -28,6 +28,20 @@ def _report_payload(db: Session, report: AssessmentReport) -> dict:
         item.id: item
         for item in db.scalars(select(EvidenceObservation).where(EvidenceObservation.id.in_(evidence_ids)))
     } if evidence_ids else {}
+    indicator_names = {}
+    if session is not None:
+        try:
+            snapshot = get_confirmed_model_snapshot(db, session.project_id, session.model_version_id)
+            for competency in snapshot.competencies:
+                for index, label in enumerate(competency.indicators):
+                    indicator_names[f"{competency.id}:{index}"] = label
+                    indicator_names.setdefault(str(label), str(label))
+        except ValueError:
+            pass
+
+    def readable_indicators(item):
+        values = list(item.matched_indicator_ids or [])
+        return [indicator_names.get(f"{item.competency_id}:{index}", indicator_names.get(str(value), str(value))) for index, value in enumerate(values)]
     return {
         "id": report.id,
         "assessment_session_id": report.assessment_session_id,
@@ -44,7 +58,7 @@ def _report_payload(db: Session, report: AssessmentReport) -> dict:
         "status": report.status.value,
         "narrative_status": report.narrative_status.value,
         "created_at": report.created_at.isoformat() if report.created_at else None,
-        "evaluations": [{"competency_id": item.competency_id, "name": competency_names.get(item.competency_id, item.competency_id), "status": item.status, "score": item.score, "attainment": item.attainment, "level": item.level, "evidence_ids": item.evidence_ids, "evidence": [{"id": evidence.id, "kind": getattr(evidence.evidence_type, "value", evidence.evidence_type), "text": evidence.summary or evidence.excerpt, "turn_id": evidence.turn_id, "excerpt": evidence.source_excerpt or evidence.excerpt} for evidence_id in (item.evidence_ids or []) if (evidence := evidence_by_id.get(evidence_id)) is not None], "matched_indicator_ids": item.matched_indicator_ids, "negative_evidence_ids": item.negative_evidence_ids, "missing_indicator_ids": item.missing_indicator_ids, "confidence": item.confidence, "rationale": item.rationale} for item in report.evaluations],
+        "evaluations": [{"competency_id": item.competency_id, "name": competency_names.get(item.competency_id, item.competency_id), "status": item.status, "score": item.score, "attainment": item.attainment, "level": item.level, "evidence_ids": item.evidence_ids, "evidence": [{"id": evidence.id, "kind": getattr(evidence.evidence_type, "value", evidence.evidence_type), "text": evidence.summary or evidence.excerpt, "turn_id": evidence.turn_id, "excerpt": evidence.source_excerpt or evidence.excerpt} for evidence_id in (item.evidence_ids or []) if (evidence := evidence_by_id.get(evidence_id)) is not None], "matched_indicator_ids": item.matched_indicator_ids, "matched_indicators": readable_indicators(item), "negative_evidence_ids": item.negative_evidence_ids, "missing_indicator_ids": item.missing_indicator_ids, "missing_indicators": [indicator_names.get(f"{item.competency_id}:{index}", str(value)) for index, value in enumerate(item.missing_indicator_ids or [])], "confidence": item.confidence, "rationale": item.rationale} for item in report.evaluations],
         "narrative": ({"overview": {"text": report.narrative.overview, "evidenceIds": report.narrative.cited_evidence_ids}, "strengths": report.narrative.strengths, "weaknesses": report.narrative.weaknesses, "recommendations": report.narrative.recommendations} if report.narrative else None),
         "candidate_background": get_session_candidate_background(db, report.assessment_session_id),
     }
@@ -129,7 +143,14 @@ def report_chat_history(report_id: str, db: Session = Depends(get_db)) -> list[d
     if db.get(AssessmentReport, report_id) is None:
         raise HTTPException(status_code=404, detail="报告不存在")
     rows = db.scalars(select(ReportChatMessage).where(ReportChatMessage.report_id == report_id).order_by(ReportChatMessage.created_at, ReportChatMessage.id)).all()
-    return [_chat_payload(item) for item in rows]
+    result = []
+    for item in rows:
+        payload = _chat_payload(item)
+        if item.cited_evidence_ids:
+            observations = db.scalars(select(EvidenceObservation).where(EvidenceObservation.id.in_(item.cited_evidence_ids))).all()
+            payload["cited_evidence"] = [observation.summary or observation.source_excerpt or observation.excerpt for observation in observations]
+        result.append(payload)
+    return result
 
 
 @router.post("/api/reports/{report_id}/chat/messages")
@@ -150,4 +171,10 @@ def ask_report_agent(report_id: str, payload: dict, db: Session = Depends(get_db
     agent_message = ReportChatMessage(report_id=report.id, role="agent", content=answer, cited_evidence_ids=evidence_ids)
     db.add(agent_message)
     db.commit()
-    return {"reply": answer, "message": _chat_payload(agent_message)}
+    evidence_labels = [
+        (observation.summary or observation.source_excerpt or observation.excerpt)
+        for observation in db.scalars(select(EvidenceObservation).where(EvidenceObservation.id.in_(evidence_ids))).all()
+    ] if evidence_ids else []
+    message = _chat_payload(agent_message)
+    message["cited_evidence"] = evidence_labels
+    return {"reply": answer, "message": message}

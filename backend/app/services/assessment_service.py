@@ -243,6 +243,20 @@ def submit_turn(db: Session, session: AssessmentSession, content: str, idempoten
     question = _latest_question(db, session)
     if question is None:
         raise AssessmentServiceError("QUESTION_NOT_FOUND")
+    # The client may submit twice while the agent is replacing the question.
+    # If a user turn already follows this question, the question is stale;
+    # return the authoritative snapshot instead of analyzing it again.
+    latest_user = db.scalars(
+        select(AssessmentTurn)
+        .where(
+            AssessmentTurn.session_id == session.id,
+            AssessmentTurn.role == AssessmentTurnRole.USER,
+            AssessmentTurn.turn_index > question.turn_index,
+        )
+        .order_by(AssessmentTurn.turn_index.desc())
+    ).first()
+    if latest_user is not None:
+        return serialize_session(db, session)
     covered = list(question.covered_competency_ids or [])
     items_by_id = {item.competency_id: item for item in _items(db, session)}
     if any(item_id not in items_by_id for item_id in covered):

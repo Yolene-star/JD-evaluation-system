@@ -11,6 +11,6 @@ export const reportApi = {
   generate: (sessionId: string, input: { evidence_package_id?: string; rubric_set_id?: string; idempotency_key: string }) => apiFetch<any>(`/api/assessment-sessions/${sessionId}/reports`, { method: 'POST', body: JSON.stringify(input) }).then(mapReport),
   retryNarrative: (reportId: string) => apiFetch<any>(`/api/reports/${reportId}/narrative/retry`, { method: 'POST' }).then(mapReport),
   policy: (reportId: string) => apiFetch<AssessmentReport['scoringPolicy']>(`/api/reports/${reportId}/scoring-policy`),
-  chatHistory: (reportId: string) => apiFetch<any[]>(`/api/reports/${reportId}/chat/messages`).then(rows => rows.map(item => ({ ...item, reportId: item.report_id, citedEvidenceIds: item.cited_evidence_ids ?? [] }))),
+  chatHistory: (reportId: string) => apiFetch<any[]>(`/api/reports/${reportId}/chat/messages`).then(rows => rows.map(item => ({ ...item, reportId: item.report_id, citedEvidenceIds: item.cited_evidence_ids ?? [], citedEvidence: item.cited_evidence ?? [] }))),
   ask: (reportId: string, content: string) => apiFetch<any>(`/api/reports/${reportId}/chat/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
 }

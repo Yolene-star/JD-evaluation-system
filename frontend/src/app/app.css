@@ -198,7 +198,7 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 .assessment-composer button, .assessment-completion button, .retry-notice button, .assessment-actions button { min-height: 44px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); color: var(--text); cursor: pointer; }
 .assessment-composer button { justify-self: start; }
 .thinking-indicator { padding: 12px; color: var(--muted); }
-.evidence-inline { display: grid; gap: 10px; margin: 12px 0; }
+.evidence-inline { display: grid; gap: 10px; flex: 0 1 260px; min-height: 0; max-height: 260px; overflow: auto; margin: 12px 0; padding-right: 8px; }
 .evidence-inline h3 { margin: 0; }
 .evidence-inline article { border-top: 1px solid var(--border); padding-top: 10px; }
 .evidence-inline header { display: flex; justify-content: space-between; gap: 8px; }

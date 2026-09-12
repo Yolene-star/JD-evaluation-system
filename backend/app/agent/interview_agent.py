@@ -96,6 +96,37 @@ class InterviewAgent:
         if any(item_id not in snapshot_by_id for item_id in covered):
             raise AgentProcessingError("COMPETENCY_NOT_IN_SNAPSHOT")
 
+        # A stale browser submit can carry the scope of an older composite
+        # question after one of its competencies has already reached a
+        # terminal state.  Never send terminal items back through the state
+        # machine; doing so previously raised ``analysis cannot be applied to
+        # a terminal competency`` and left the answer stuck in the UI.
+        covered = [
+            item_id
+            for item_id in covered
+            if assessments[item_id].status
+            not in {
+                CompetencyAssessmentStatus.SUFFICIENT,
+                CompetencyAssessmentStatus.EXHAUSTED,
+                CompetencyAssessmentStatus.INCOMPLETE,
+            }
+        ]
+        if not covered:
+            # The answer belongs to a question that has already been applied.
+            # Treat it as an idempotent no-op and expose the completed state.
+            context_after = self.memory.get_context(session)
+            decision = PlannerDecision(
+                action=AgentAction.FINISH,
+                reason="该回答对应的问题已经完成分析，保持当前测评状态",
+            )
+            result = AgentTurnResult(
+                decision=decision,
+                current_question=None,
+                agent_status=self._status(context_after, decision, AgentPhase.COMPLETED),
+            )
+            self._record_agent_status(session.id, answer.id, result)
+            return result
+
         analyses: list[tuple[CompetencyAssessment, Any, AnalysisResult]] = []
         # The submitted turn is already persisted before processing.  The
         # analysis prompt must receive only prior conversation turns; the
