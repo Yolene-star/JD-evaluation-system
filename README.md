@@ -4,6 +4,12 @@ AI 驱动的岗位胜任力测评与人才画像系统，面向学生自测、�
 
 > 所有评分和报告都是辅助性结果，不构成正式招聘决策、心理测量或职业资格结论。
 
+## 程序定位与语言交互
+
+这是一个支持自然语言交互的 AI 应用程序。用户可以通过对话输入岗位需求、补充或修订材料、询问模型依据，也可以在测评过程中直接用自然语言回答问题。系统中的 Agent 负责理解用户意图、生成问题、识别回答中的能力证据并解释报告；确定性程序负责状态流转、版本冻结、证据引用、权重聚合和评分计算。
+
+语言交互贯穿三个阶段：阶段一用于核对 JD、解释能力项并辅助完成岗位模型；阶段二用于开展多轮自适应文字测评和追问；阶段三用于根据已生成的报告回答评分依据、证据来源和改进建议。用户也可以使用文字、文件、链接或浏览器提取方式补充 JD。自然语言交互不会绕过权限、状态和版本校验，Agent 也不能直接修改正式评分、历史报告或已冻结模型。
+
 ## 三阶段闭环
 
 ```text
@@ -123,6 +129,50 @@ python -m alembic check
 
 迁移前审查 autogenerate 结果，不删除历史快照、证据包或报告。
 
+## 质量测试样例集
+
+仓库提供两层质量数据：
+
+- `harness/fixtures/quality/samples.jsonl`：100 条脱敏混合回归样例；
+- `harness/fixtures/quality/jd_reference_models.jsonl`：192 条独立 JD 与人工维护的参考岗位模型。
+
+100 条混合样例分布如下：
+
+| 样例类型 | 数量 | 覆盖内容 |
+|---|---:|---|
+| JD 解析 | 50 | 10 类岗位、标准/简洁/重复/低信息量/提示注入等表达 |
+| 回答分析 | 35 | 充分回答、短回答、拒绝回答、空回答与提示注入 |
+| 评分边界 | 5 | `INCOMPLETE`、满覆盖、半覆盖、负向和不确定证据 |
+| 引用校验 | 5 | 原文、空白归一化、改写、空证据和标点差异 |
+| 问题契约 | 5 | 1 至 3 项唯一能力、空范围、越界和重复 ID |
+
+192 条 JD 参考集覆盖 24 个岗位族、4 个资历层级和多种行业、地点、表达风格，每条包含能力权重、别名、指标、证据要求和可回溯原文。
+
+重新生成并运行回归：
+
+```powershell
+python harness/generate_quality_samples.py
+python harness/generate_jd_reference_models.py
+python -m pytest backend/tests/test_quality_samples.py -q
+python -m pytest backend/tests/test_jd_reference_models.py backend/tests/test_jd_quality_metrics.py -q
+```
+
+无 API Key 时可运行确定性基线：
+
+```powershell
+python harness/quality_runner.py check
+python harness/quality_runner.py run --model deterministic-fallback --sample-size 20
+```
+
+配置 Key 后可比较真实模型：
+
+```powershell
+python harness/quality_runner.py run --model deepseek-chat --sample-size 20
+python harness/quality_runner.py run --model deepseek-reasoner --sample-size 20
+```
+
+2026-09-12 的实际对比见 `docs/quality/2026-09-12-model-comparison.md`。样例不包含真实个人数据；确定性回退只用于教学和回归，不代表真实大模型的专业评价质量。
+
 ## 本地验证
 
 ```powershell
@@ -141,6 +191,9 @@ backend/app/services/    解析、状态机、证据、评分、报告和隐私�
 backend/app/routes/      FastAPI API 路由
 backend/alembic/         数据库迁移配置
 backend/tests/           后端契约、状态机和三阶段测试
+prompts/                 版本化 Prompt、Schema 和清单
+harness/fixtures/quality/ 100 条混合样例和 192 条 JD 参考模型
+harness/quality_runner.py 离线和多模型质量评测 Runner
 frontend/src/            React 应用与三阶段工作台
 frontend/tests/           Vitest/Playwright 测试
 docs/                    规格、实施计划和隐私说明
