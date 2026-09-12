@@ -23,6 +23,8 @@ test('stage three renders partial report without turning incomplete into zero', 
   await expect(stages.getByRole('button', { name: '人才画像' })).toBeEnabled()
   await stages.getByRole('button', { name: '人才画像' }).click()
   await expect(page.getByRole('heading', { name: '能力评价与人才画像' }).last()).toBeVisible()
+  await expect(page.getByRole('heading', { name: '能力雷达图' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '能力得分条状图' })).toBeVisible()
   await expect(page.getByText('不可完全评价', { exact: true }).last()).toBeVisible()
   await expect(page.getByText('70%').first()).toBeVisible()
   await expect(page.getByRole('heading', { name: '阶段三报告工作台' })).toBeVisible()

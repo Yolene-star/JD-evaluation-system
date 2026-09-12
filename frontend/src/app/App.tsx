@@ -101,13 +101,14 @@ export default function App() {
   const deleteProject = async (id: string) => { setAppBusy(true); setAppError(''); try { await apiFetch(`/api/projects/${id}`, { method: 'DELETE' }); setProjects(current => current.filter(project => project.id !== id)); if (activeId === id) { setActiveId(undefined); setMessages([]); setReply(''); setPendingOperation(undefined) } } catch (cause) { setAppError(cause instanceof Error ? cause.message : '删除任务失败，请重试。') } finally { setAppBusy(false) } }
   const selectProject = (id: string) => { setActiveId(id); setCurrentStage(1); setReply(''); setPendingOperation(undefined); setAppError(''); setShowAssessment(false); setShowReport(false); setAssessmentSnapshot(undefined); setReport(undefined); setReportSessionId(undefined) }
   const loadReport = async () => {
-    if (!reportSessionId) return
+    const sessionId = reportSessionId ?? assessmentSnapshot?.sessionId
+    if (!sessionId) return
     setReportLoading(true)
     setReportError('')
     try {
-      const rows = await reportApi.list(reportSessionId)
+      const rows = await reportApi.list(sessionId)
       if (rows[0]) { setReport(rows[0]); setReportMessages(await reportApi.chatHistory(rows[0].id)); return }
-      const created = await reportApi.generate(reportSessionId, { idempotency_key: `report-${reportSessionId}` })
+      const created = await reportApi.generate(sessionId, { idempotency_key: `report-${sessionId}` })
       setReport(created)
       setReportMessages([])
     } catch (cause) {
@@ -120,6 +121,7 @@ export default function App() {
   const selectStage = (stage: StageNumber) => {
     setCurrentStage(stage)
     if (stage === 1) { setShowAssessment(false); setShowReport(false); return }
+    if (stage === 3 && !reportSessionId && assessmentSnapshot?.sessionId) setReportSessionId(assessmentSnapshot.sessionId)
     setShowAssessment(true)
     if (stage === 2) { setShowReport(false); return }
     setShowReport(true)
