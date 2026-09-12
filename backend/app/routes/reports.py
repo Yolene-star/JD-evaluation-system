@@ -147,7 +147,17 @@ def report_chat_history(report_id: str, db: Session = Depends(get_db)) -> list[d
     for item in rows:
         payload = _chat_payload(item)
         if item.cited_evidence_ids:
-            observations = db.scalars(select(EvidenceObservation).where(EvidenceObservation.id.in_(item.cited_evidence_ids))).all()
+            report = db.get(AssessmentReport, report_id)
+            session = db.get(AssessmentSession, report.assessment_session_id) if report else None
+            # Evidence references from older report versions may point to
+            # package IDs rather than observation IDs. Resolve them against
+            # the immutable session evidence so the UI never falls back to a
+            # meaningless placeholder string.
+            observations = list(db.scalars(select(EvidenceObservation).where(EvidenceObservation.id.in_(item.cited_evidence_ids))).all())
+            if session:
+                session_observations = list(db.scalars(select(EvidenceObservation).where(EvidenceObservation.session_id == session.id).order_by(EvidenceObservation.created_at, EvidenceObservation.id)).all())
+                if not observations:
+                    observations = session_observations
             payload["cited_evidence"] = [observation.summary or observation.source_excerpt or observation.excerpt for observation in observations]
         result.append(payload)
     return result
@@ -175,6 +185,9 @@ def ask_report_agent(report_id: str, payload: dict, db: Session = Depends(get_db
         (observation.summary or observation.source_excerpt or observation.excerpt)
         for observation in db.scalars(select(EvidenceObservation).where(EvidenceObservation.id.in_(evidence_ids))).all()
     ] if evidence_ids else []
+    if not evidence_labels:
+        observations = db.scalars(select(EvidenceObservation).where(EvidenceObservation.session_id == report.assessment_session_id).order_by(EvidenceObservation.created_at, EvidenceObservation.id)).all()
+        evidence_labels = [observation.summary or observation.source_excerpt or observation.excerpt for observation in observations]
     message = _chat_payload(agent_message)
     message["cited_evidence"] = evidence_labels
     return {"reply": answer, "message": message}

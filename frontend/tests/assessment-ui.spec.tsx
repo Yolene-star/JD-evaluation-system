@@ -84,6 +84,6 @@ describe('stage two assessment UI contracts', () => {
     const html = renderToStaticMarkup(<AnswerComposer onSubmit={() => undefined} />)
     expect(html).toContain('提示一下')
     expect(html).toContain('换个说法')
-    expect(html).toContain('卡住了也没关系')
+    expect(html).not.toContain('卡住了也没关系')
   })
 })

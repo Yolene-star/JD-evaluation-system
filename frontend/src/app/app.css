@@ -187,7 +187,6 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 .assessment-tags span { border: 1px solid var(--border-strong); border-radius: 999px; padding: 5px 10px; font-size: .82rem; }
 .assessment-composer { display: grid; flex: 0 0 auto; gap: 8px; margin-top: 0; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: 0 -8px 20px rgb(23 60 59 / 6%); }
 .assessment-helper-messages { display: grid; gap: 6px; }
-.assessment-default-hint { margin: 0; color: var(--muted); font-size: .8rem; }
 .assessment-agent-message { margin: 0; padding: 9px 10px; border-left: 3px solid var(--primary); border-radius: 4px 10px 10px 4px; background: var(--surface-soft); line-height: 1.45; }
 .assessment-agent-message strong { display: block; margin-bottom: 3px; color: var(--muted); font-size: .72rem; }
 .assessment-composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -215,7 +214,9 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 .agent-status-marker { flex: 0 0 auto; width: 9px; height: 9px; margin-top: .38em; border: 2px solid var(--primary); border-radius: 50%; background: var(--primary); }
 .agent-status-marker.is-active { background: transparent; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
 .agent-status-marker.is-pending { border-color: var(--border-strong); background: transparent; }
-.assessment-competency-row { display: flex; justify-content: space-between; gap: 8px; padding: 9px 0; border-top: 1px solid var(--border); }
+.assessment-competency-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); }
+.assessment-competency-row span { min-width: 0; overflow-wrap: anywhere; }
+.assessment-competency-row small { flex: 0 0 auto; white-space: nowrap; font-size: .78rem; }
 .assessment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .report-view { display: grid; gap: 14px; overflow: auto; }
 .report-visual-grid { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(0, 1.3fr); gap: 14px; }
@@ -247,10 +248,16 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 .report-chat h3 { margin: 0; }
 .report-chat-suggestions { display: flex; flex-wrap: wrap; gap: 8px; }
 .report-chat-history { display: grid; align-content: start; gap: 10px; flex: 1; min-height: 160px; overflow: auto; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); }
-.report-chat-message { max-width: 82%; padding: 11px 13px; border-radius: 5px 14px 14px; background: var(--surface); line-height: 1.55; }
+.report-chat-message { max-width: 82%; padding: 11px 13px; border-radius: 5px 14px 14px; background: var(--surface); color: var(--text); font-size: 1rem; line-height: 1.65; }
 .report-chat-message.user { justify-self: end; border-radius: 14px 5px 14px 14px; background: #cde9e2; }
-.report-chat-message span, .report-chat-message small { color: var(--muted); font-size: .72rem; }
-.report-chat-message p { margin: 4px 0; }
+.report-chat-message > span, .report-chat-message > small { color: var(--muted); font-size: .72rem; }
+.report-chat-message > p { margin: 6px 0; color: var(--text); font-size: inherit; }
+.report-chat-message.agent > h4, .report-chat-message.agent > ul, .report-chat-message.agent > ol { margin: 8px 0; }
+.report-chat-evidence { margin-top: 12px; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-soft); color: var(--text); font-size: .9rem; }
+.report-chat-evidence summary { cursor: pointer; color: var(--primary-strong, var(--primary)); font-size: .9rem; font-weight: 700; }
+.report-chat-evidence ol { margin: 8px 0 0; padding-left: 24px; }
+.report-chat-evidence li { padding: 5px 0; }
+.report-chat-evidence blockquote { margin: 4px 0 0; padding: 8px 10px; border-left: 3px solid var(--primary); color: var(--text); font-size: .9rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .report-chat-composer { display: grid; gap: 8px; }
 .report-chat-composer label { font-weight: 700; }
 .report-chat-composer textarea { width: 100%; min-height: 88px; resize: vertical; padding: 12px; border: 1px solid var(--border-strong); border-radius: 12px; color: var(--text); background: #fff; }
